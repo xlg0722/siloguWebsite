@@ -398,3 +398,76 @@
     </section>
 
     <!-- 好友与聊天 -->
+    <section class="page" id="page-friends">
+        <div class="page-inner page-inner--wide">
+            <div id="friends-view">
+                <a class="back-link" href="#home" data-page="home">← 返回首页</a>
+                <h2 class="panel-title">好友</h2>
+
+                <form class="auth-form friend-search" id="friend-search-form" novalidate>
+                    <div class="code-row">
+                        <input class="field__input" type="search" name="query" maxlength="60"
+                               placeholder="输入昵称或完整邮箱" autocomplete="off">
+                        <button class="code-send" type="submit">搜索</button>
+                    </div>
+                    <p class="auth-msg" id="friend-search-msg" role="alert"></p>
+                </form>
+
+                <div class="friend-section" id="friend-results-wrap" hidden>
+                    <h3 class="section-title">搜索结果</h3>
+                    <div class="friend-list" id="friend-results"></div>
+                </div>
+
+                <div class="friend-section" id="friend-requests-wrap" hidden>
+                    <h3 class="section-title">好友申请</h3>
+                    <div class="friend-list" id="friend-requests"></div>
+                </div>
+
+                <div class="friend-section">
+                    <h3 class="section-title">我的好友</h3>
+                    <div class="friend-list" id="friends-list"></div>
+                    <p class="friends-empty" id="friends-empty">还没有好友，用昵称或邮箱搜索添加吧</p>
+                </div>
+
+                <div class="friend-section" id="blocked-wrap" hidden>
+                    <h3 class="section-title">黑名单</h3>
+                    <div class="friend-list" id="blocked-list"></div>
+                </div>
+            </div>
+
+            <div id="chat-view" hidden>
+                <button class="back-link chat-back" id="chat-back" type="button">← 好友列表</button>
+                <div class="chat-head">
+                    <span class="chat-avatar" id="chat-avatar"></span>
+                    <span class="chat-name" id="chat-name"></span>
+                    <span class="chat-head__actions">
+                        <button class="friend-action" type="button" id="chat-report">举报</button>
+                        <button class="friend-action" type="button" id="chat-block">拉黑</button>
+                    </span>
+                </div>
+                <div class="chat-scroll" id="chat-scroll">
+                    <div class="chat-messages" id="chat-messages"></div>
+                    <p class="friends-empty" id="chat-empty" hidden>还没有消息，打个招呼吧</p>
+                </div>
+                <form class="chat-form" id="chat-form" novalidate>
+                    <button class="friend-action chat-attach" id="chat-attach" type="button" title="发送图片或视频">＋</button>
+                    <textarea class="chat-input" id="chat-input" rows="1" maxlength="2000"
+                              placeholder="输入消息…" autocomplete="off"></textarea>
+                    <button class="code-send chat-send" type="submit">发送</button>
+                </form>
+                <div class="chat-attach-bar" id="chat-attach-bar" hidden>
+                    <span class="chat-attach-name" id="chat-attach-name"></span>
+                    <button class="chat-attach-clear" id="chat-attach-clear" type="button">移除</button>
+                </div>
+                <input class="media-file" type="file" id="chat-file" accept="image/*,video/*" hidden>
+                <p class="auth-msg" id="chat-msg" role="alert"></p>
+            </div>
+        </div>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="script.js"></script>
+    <script src="auth.js"></script>
+</body>
+</html>
