@@ -109,21 +109,29 @@ img {
     transition: color 0.2s ease;
 }
 
-/* 原图是黑色线条 + 透明底，反色后在深色导航栏上才看得见 */
-.nav-brand__logo {
-    width: auto;
+/* 左上角品牌标记：渐变方块 + 「小」字，替代原来的白色大图像 */
+.nav-brand__mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
     height: 26px;
-    filter: invert(1);
-    opacity: 0.92;
-    transition: opacity 0.2s ease;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0;
+    color: #f2f7ff;
+    background: linear-gradient(135deg, #2b5fd9, #7fb2ff);
+    box-shadow: 0 0 14px rgba(80, 140, 255, 0.45);
+    transition: box-shadow 0.2s ease;
 }
 
 .nav-brand:hover {
     color: #fff;
 }
 
-.nav-brand:hover .nav-brand__logo {
-    opacity: 1;
+.nav-brand:hover .nav-brand__mark {
+    box-shadow: 0 0 18px rgba(110, 165, 255, 0.75);
 }
 
 .nav-links {
@@ -360,8 +368,10 @@ img {
         font-size: 18px;
     }
 
-    .nav-brand__logo {
+    .nav-brand__mark {
+        width: 22px;
         height: 22px;
+        font-size: 12px;
     }
 
     .nav-link {
@@ -2626,272 +2636,4 @@ button.friend-item:focus-visible {
 .store-card__meta {
     font-size: 11px;
     color: rgba(160, 180, 215, 0.55);
-}
-
-.store-detail {
-    display: flex;
-    align-items: flex-start;
-    gap: 24px;
-    padding: 20px;
-    background: linear-gradient(180deg, rgba(67, 87, 126, 0.4) 0%, rgba(26, 40, 68, 0.4) 100%);
-    border: 1px solid rgba(158, 184, 232, 0.3);
-    border-radius: 12px;
-}
-
-.store-detail__cover {
-    flex: none;
-    width: 200px;
-    height: 200px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 52px;
-    font-weight: 600;
-    border-radius: 8px;
-    background-size: cover;
-    background-position: center;
-    border: 1px solid rgba(158, 184, 232, 0.28);
-}
-
-.store-detail__cover--img {
-    color: transparent;
-}
-
-.store-detail__info {
-    flex: 1;
-    min-width: 0;
-}
-
-.store-detail__title {
-    font-size: 22px;
-    font-weight: 600;
-    margin-bottom: 8px;
-}
-
-.store-detail__meta {
-    font-size: 12px;
-    color: rgba(170, 190, 225, 0.65);
-    margin-bottom: 14px;
-}
-
-.store-detail__desc {
-    font-size: 14px;
-    line-height: 1.7;
-    color: rgba(214, 226, 246, 0.82);
-    margin-bottom: 18px;
-    white-space: pre-wrap;
-}
-
-.store-detail__actions {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-}
-
-.store-detail__size {
-    font-size: 12px;
-    color: rgba(170, 190, 225, 0.6);
-}
-
-/* 版本列表（多版本条目） */
-.store-versions {
-    margin: 4px 0 14px;
-}
-
-.store-versions__title {
-    font-size: 13px;
-    color: rgba(170, 190, 225, 0.7);
-    margin-bottom: 8px;
-}
-
-.store-versions__list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.store-version {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 12px;
-    background: rgba(18, 30, 52, 0.45);
-    border: 1px solid rgba(158, 184, 232, 0.22);
-    border-radius: 8px;
-}
-
-.store-version__tag {
-    flex: 1;
-    min-width: 0;
-    font-size: 13px;
-    color: #e6efff;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.store-version__size {
-    flex: none;
-    font-size: 11px;
-    color: rgba(170, 190, 225, 0.6);
-}
-
-.store-version__btn {
-    flex: none;
-    padding: 4px 12px;
-    font-size: 12px;
-}
-
-@media (max-width: 720px) {
-    .store-search {
-        width: 100%;
-        max-width: none;
-        margin-left: 0;
-    }
-
-    .store-detail {
-        flex-direction: column;
-    }
-
-    .store-detail__cover {
-        width: 100%;
-        height: 160px;
-    }
-}
-
-/* 反馈中心：投票与建议 */
-.store-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 14px 0 18px;
-}
-
-.poll-card {
-    margin-bottom: 14px;
-    padding: 16px;
-    border-radius: 12px;
-    background: rgba(18, 30, 52, 0.55);
-    border: 1px solid rgba(158, 184, 232, 0.24);
-}
-
-.poll-card__head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-.poll-card__title {
-    font-size: 15px;
-    font-weight: 600;
-    color: #e6efff;
-}
-
-.poll-card__meta {
-    flex: none;
-    font-size: 11px;
-    color: rgba(170, 190, 225, 0.6);
-}
-
-.poll-card__desc {
-    margin: 6px 0 12px;
-    font-size: 12px;
-    line-height: 1.6;
-    color: rgba(190, 208, 236, 0.75);
-}
-
-.poll-options {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.poll-option {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 9px 12px;
-    border-radius: 8px;
-    background: rgba(12, 22, 40, 0.6);
-    border: 1px solid rgba(158, 184, 232, 0.2);
-    color: #dbe7ff;
-    font-size: 13px;
-    cursor: pointer;
-    text-align: left;
-}
-
-.poll-option:hover {
-    border-color: rgba(127, 178, 255, 0.55);
-}
-
-.poll-option--voted {
-    border-color: rgba(127, 178, 255, 0.8);
-    background: rgba(38, 70, 120, 0.55);
-}
-
-.poll-option__count {
-    flex: none;
-    font-size: 11px;
-    color: rgba(170, 190, 225, 0.7);
-}
-
-.feedback-item {
-    padding: 14px 16px;
-    margin-bottom: 10px;
-    border-radius: 10px;
-    background: rgba(18, 30, 52, 0.45);
-    border: 1px solid rgba(158, 184, 232, 0.2);
-}
-
-.feedback-item__head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 10px;
-}
-
-.feedback-item__title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #e6efff;
-}
-
-.feedback-item__meta {
-    flex: none;
-    font-size: 11px;
-    color: rgba(170, 190, 225, 0.6);
-}
-
-.feedback-item__body {
-    margin-top: 6px;
-    font-size: 12px;
-    line-height: 1.65;
-    color: rgba(190, 208, 236, 0.8);
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-
-.feedback-item__evidence {
-    margin-top: 8px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    background: rgba(10, 18, 32, 0.7);
-    font-size: 11px;
-    color: rgba(170, 190, 225, 0.85);
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-
-.feedback-form .field__input {
-    margin-bottom: 10px;
-}
-
-#feedback-form,
-#admin-poll-form {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
 }

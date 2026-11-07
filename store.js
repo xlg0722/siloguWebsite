@@ -44,6 +44,13 @@
         return kind === 'app' ? '应用' : '游戏';
     }
 
+    // 卡片 meta 文案，列表和异步刷新都用它，保证两边一致
+    function cardMetaText(item) {
+        return (item.author || '匿名') + ' · ' + (item.version || '') +
+            (item.size ? ' · ' + item.size : '') +
+            (item.versionMode === 'all' ? ' · 多版本' : '');
+    }
+
     function fmtBytes(bytes) {
         const n = Number(bytes) || 0;
         if (n <= 0) return '';
@@ -97,9 +104,9 @@
 
         const meta = document.createElement('span');
         meta.className = 'store-card__meta';
-        meta.textContent = (item.author || '匿名') + ' · ' + (item.version || '') +
-            (item.size ? ' · ' + item.size : '') +
-            (item.versionMode === 'all' ? ' · 多版本' : '');
+        meta.textContent = cardMetaText(item);
+        // 挂在卡片上，异步拿到最新版本后直接改这段文字
+        card.__meta = meta;
 
         body.appendChild(top);
         body.appendChild(summary);
@@ -113,11 +120,43 @@
         return card;
     }
 
+    // 最新版本缓存：60 秒内不重复请求同一仓库
+    const versionCache = {};
+    const VERSION_CACHE_MS = 60 * 1000;
+
+    function fetchLatestVersion(item) {
+        if (!item || !item.repo) return Promise.resolve(null);
+        const cached = versionCache[item.repo];
+        if (cached && Date.now() - cached.at < VERSION_CACHE_MS) {
+            return Promise.resolve(cached.version);
+        }
+        return fetchReleases(item).then(function (releases) {
+            const latest = pickLatestRelease(releases);
+            if (!latest || !latest.tag_name) return null;
+            versionCache[item.repo] = { at: Date.now(), version: latest.tag_name };
+            return latest.tag_name;
+        });
+    }
+
+    // 仅最新版的条目：卡片上的版本号跟着 Gitee 实际发行版走，不用手改代码
+    function refreshCardVersion(item, card) {
+        if (!item || item.versionMode !== 'latest') return;
+        fetchLatestVersion(item).then(function (tag) {
+            if (!tag) return;
+            if (tag !== item.version) item.version = tag;
+            if (card.__meta) card.__meta.textContent = cardMetaText(item);
+        }).catch(function () {
+            // 离线时保留 store-data.js 里写好的版本号
+        });
+    }
+
     function renderList() {
         grid.innerHTML = '';
         const visible = items.filter(matches);
         visible.forEach(function (item) {
-            grid.appendChild(buildCard(item));
+            const card = buildCard(item);
+            grid.appendChild(card);
+            refreshCardVersion(item, card);
         });
         if (emptyTip) emptyTip.hidden = visible.length > 0;
     }
@@ -198,229 +237,3 @@
 
             const row = document.createElement('div');
             row.className = 'store-version';
-
-            const tag = document.createElement('span');
-            tag.className = 'store-version__tag';
-            tag.textContent = release.tag_name;
-
-            const size = document.createElement('span');
-            size.className = 'store-version__size';
-            size.textContent = release.prerelease ? '预览版' : '正式版';
-
-            const action = document.createElement('button');
-            action.type = 'button';
-            action.className = 'friend-action store-version__btn';
-            action.textContent = '下载';
-            action.addEventListener('click', function () {
-                startDownload(item, {
-                    url: asset.browser_download_url || asset.download_url,
-                    fileName: asset.name
-                });
-            });
-
-            row.appendChild(tag);
-            row.appendChild(size);
-            row.appendChild(action);
-            versionsList.appendChild(row);
-        });
-
-        if (!versionsList.children.length && msg) {
-            msg.textContent = '暂时没有可下载的版本';
-        }
-    }
-
-    function openDetail(item) {
-        currentItem = item;
-        openToken += 1;
-        const token = openToken;
-
-        if (msg) msg.textContent = '';
-        if (progress) progress.hidden = true;
-        if (versionsWrap) versionsWrap.hidden = true;
-        if (downloadBtn) downloadBtn.disabled = false;
-
-        if (detailCover) {
-            detailCover.dataset.kind = item.kind;
-            if (item.cover) {
-                detailCover.classList.add('store-detail__cover--img');
-                detailCover.style.backgroundImage = 'url("' + item.cover + '")';
-                detailCover.textContent = '';
-            } else {
-                detailCover.classList.remove('store-detail__cover--img');
-                detailCover.style.backgroundImage = '';
-                detailCover.textContent = (item.title || '?').slice(0, 1);
-            }
-        }
-        if (detailTitle) detailTitle.textContent = item.title;
-        if (detailDesc) detailDesc.textContent = item.description || item.summary || '';
-        if (detailSize) detailSize.textContent = item.size ? '文件大小：' + item.size : '';
-        if (detailMeta) {
-            detailMeta.textContent = kindLabel(item.kind) + ' · ' + (item.author || '匿名') +
-                ' · ' + (item.version || '');
-        }
-
-        if (listView) listView.hidden = true;
-        if (detailView) detailView.hidden = false;
-
-        if (item.versionMode === 'all') {
-            // 多版本：先显示兜底列表，接口回来后替换成最新数据
-            if (downloadBtn) downloadBtn.hidden = true;
-            if (versionsWrap) versionsWrap.hidden = false;
-            if (item.versions && item.versions.length) {
-                renderVersionRows(item, item.versions.map(function (v) {
-                    return { tag_name: v.tag, prerelease: false, assets: [{ name: fileBaseName(v.url, item.fileName), browser_download_url: v.url }] };
-                }));
-            }
-
-            fetchReleases(item).then(function (releases) {
-                if (token !== openToken || !releases.length) return;
-                if (versionsList) versionsList.innerHTML = '';
-                const ordered = releases.slice().sort(function (a, b) {
-                    const va = versionToArray(a.tag_name);
-                    const vb = versionToArray(b.tag_name);
-                    if (!va || !vb) return 0;
-                    return compareVersionList(vb, va);
-                });
-                if (detailMeta && ordered[0]) {
-                    detailMeta.textContent = kindLabel(item.kind) + ' · ' + (item.author || '匿名') +
-                        ' · ' + ordered[0].tag_name;
-                }
-                renderVersionRows(item, ordered);
-            }).catch(function () {
-                // 请求失败就保留兜底列表
-            });
-            return;
-        }
-
-        // 仅最新版：读取最新发行版，更新版本号与下载地址
-        if (downloadBtn) downloadBtn.hidden = false;
-        fetchReleases(item).then(function (releases) {
-            if (token !== openToken || !releases.length) return;
-            const latest = pickLatestRelease(releases);
-            if (!latest) return;
-            const asset = pickAsset(latest, item);
-            if (!asset) return;
-
-            item.url = asset.browser_download_url || asset.download_url;
-            item.fileName = asset.name;
-            item.version = latest.tag_name;
-
-            if (detailMeta) {
-                detailMeta.textContent = kindLabel(item.kind) + ' · ' + (item.author || '匿名') +
-                    ' · ' + latest.tag_name;
-            }
-            if (msg) msg.textContent = '';
-        }).catch(function () {
-            // 离线时继续使用 store-data.js 里写好的最新版信息
-        });
-    }
-
-    function closeDetail() {
-        currentItem = null;
-        openToken += 1;
-        if (progress) progress.hidden = true;
-        if (detailView) detailView.hidden = true;
-        if (listView) listView.hidden = false;
-    }
-
-    function showProgress(show, received, total) {
-        if (!progress) return;
-        progress.hidden = !show;
-        if (!show) return;
-        const hasTotal = total > 0;
-        const percent = hasTotal ? Math.min(100, Math.round(received / total * 100)) : 0;
-        if (progressFill) progressFill.style.width = (hasTotal ? percent : 0) + '%';
-        if (progressText) {
-            progressText.textContent = hasTotal
-                ? percent + '% · ' + fmtBytes(received) + ' / ' + fmtBytes(total)
-                : '已下载 ' + fmtBytes(received);
-        }
-    }
-
-    function startDownload(item, target) {
-        if (!item) return;
-        if (msg) msg.textContent = '';
-
-        const url = (target && target.url) || item.url;
-        const fileName = (target && target.fileName) || item.fileName || item.title;
-
-        // 桌面端：原生下载，带进度；网页端：直接跳转外链
-        if (isDesktop && window.desktopAPI && typeof window.desktopAPI.downloadFile === 'function') {
-            downloading = true;
-            showProgress(true, 0, 0);
-            window.desktopAPI.downloadFile({ url: url, filename: fileName })
-                .catch(function (err) {
-                    downloading = false;
-                    showProgress(false);
-                    if (msg) msg.textContent = '下载失败：' + (err && err.message ? err.message : '未知错误');
-                });
-            return;
-        }
-
-        window.location.href = url;
-    }
-
-    // 筛选按钮
-    chips.forEach(function (chip) {
-        chip.addEventListener('click', function () {
-            activeKind = chip.dataset.kind || 'all';
-            chips.forEach(function (c) {
-                c.classList.toggle('store-chip--active', c === chip);
-            });
-            renderList();
-        });
-    });
-
-    if (searchInput) {
-        searchInput.addEventListener('input', function () {
-            keyword = searchInput.value || '';
-            renderList();
-        });
-    }
-
-    if (backBtn) {
-        backBtn.addEventListener('click', closeDetail);
-    }
-
-    if (downloadBtn) {
-        downloadBtn.addEventListener('click', function () {
-            if (!currentItem) return;
-            startDownload(currentItem, null);
-        });
-    }
-
-    // 桌面端下载进度
-    if (isDesktop && window.desktopAPI) {
-        if (typeof window.desktopAPI.onDownloadProgress === 'function') {
-            window.desktopAPI.onDownloadProgress(function (data) {
-                if (!downloading || !detailView || detailView.hidden) return;
-                showProgress(true, data.received || 0, data.total || 0);
-            });
-        }
-        if (typeof window.desktopAPI.onDownloadDone === 'function') {
-            window.desktopAPI.onDownloadDone(function (data) {
-                if (!downloading) return;
-                downloading = false;
-                showProgress(true, 1, 1);
-                if (msg) msg.textContent = '下载完成：' + (data && data.path ? data.path : '');
-            });
-        }
-        if (typeof window.desktopAPI.onDownloadError === 'function') {
-            window.desktopAPI.onDownloadError(function (data) {
-                if (!downloading) return;
-                downloading = false;
-                showProgress(false);
-                if (msg) msg.textContent = '下载失败：' + (data && data.message ? data.message : '未知错误');
-            });
-        }
-    }
-
-    // 每次进入商店页回到列表，避免停在上一次的详情
-    window.addEventListener('silgu:page', function (e) {
-        if (!e.detail || e.detail.name !== 'store') return;
-        closeDetail();
-        renderList();
-    });
-
-    renderList();
-})();
