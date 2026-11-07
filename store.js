@@ -181,9 +181,15 @@
     }
 
     // releases.json 由 GitHub Actions 定时从 Gitee 抓取生成，
-    // Gitee 接口被限流时用它兜底（Electron 走 file:// 读不到，会直接跳过）
-    function fetchSnapshot(item) {
-        return fetch('releases.json', { headers: { Accept: 'application/json' } })
+    // Gitee 接口被限流时用它兜底。网页读同目录文件，应用里（file://）改读 CDN
+    const SNAPSHOT_URLS = [
+        'releases.json',
+        'https://cdn.jsdelivr.net/gh/xlg0722/siloguWebsite@main/releases.json',
+        'https://raw.githubusercontent.com/xlg0722/siloguWebsite/main/releases.json'
+    ];
+
+    function readSnapshot(url, item) {
+        return fetch(url, { headers: { Accept: 'application/json' } })
             .then(function (res) {
                 if (!res.ok) return null;
                 return res.json();
@@ -196,6 +202,15 @@
             .catch(function () {
                 return null;
             });
+    }
+
+    function fetchSnapshot(item, index) {
+        const i = index || 0;
+        if (i >= SNAPSHOT_URLS.length) return Promise.resolve(null);
+        return readSnapshot(SNAPSHOT_URLS[i], item).then(function (list) {
+            if (list) return list;
+            return fetchSnapshot(item, i + 1);
+        });
     }
 
     // 从发行版资产里挑出真正的安装包，排除 Gitee 自动附加的源码包
