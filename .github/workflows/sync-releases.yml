@@ -1,0 +1,37 @@
+name: 同步 Gitee 发行版
+
+# 商店的版本号、下载地址来自 releases.json
+# 这里定时从 Gitee 抓取，发布新版本后最多 20 分钟网站就会自动显示
+
+on:
+  schedule:
+    - cron: '*/20 * * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/sync-releases.yml'
+      - 'scripts/sync-releases.js'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 抓取 Gitee 发行版
+        run: node scripts/sync-releases.js
+
+      - name: 提交变更
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add releases.json
+          if git diff --staged --quiet; then
+            echo "没有变化"
+          else
+            git commit -m "chore: 同步 Gitee 发行版"
+            git push
+          fi
