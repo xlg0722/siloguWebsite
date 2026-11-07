@@ -4289,29 +4289,37 @@
 
             downloadButton.disabled = true;
 
-            const result = await sb.storage
-                .from(cfg.bucket)
-                .createSignedUrl(cfg.fileName, 600);
+            // 优先走 Gitee 发行版直链（国内快）；未配置时才回退到 Supabase 私有桶签名地址
+            let downloadUrl = cfg.gameUrl || '';
+            let downloadName = cfg.gameFileName || cfg.fileName;
+            if (!downloadUrl) {
+                const result = await sb.storage
+                    .from(cfg.bucket)
+                    .createSignedUrl(cfg.fileName, 600);
+
+                if (result.error) {
+                    downloadButton.disabled = false;
+                    if (downloadMsg) {
+                        downloadMsg.textContent = '下载失败：' + translateError(result.error.message);
+                    }
+                    return;
+                }
+                downloadUrl = result.data.signedUrl;
+                downloadName = cfg.fileName;
+            }
 
             downloadButton.disabled = false;
-
-            if (result.error) {
-                if (downloadMsg) {
-                    downloadMsg.textContent = '下载失败：' + translateError(result.error.message);
-                }
-                return;
-            }
 
             // 桌面应用：交给 Electron 原生下载（可设目录、显示进度）；网页：直接跳转浏览器下载
             if (isDesktop && window.desktopAPI && typeof window.desktopAPI.downloadFile === 'function') {
                 showDownloadProgress(true, 0, 0);
-                window.desktopAPI.downloadFile({ url: result.data.signedUrl, filename: cfg.fileName })
+                window.desktopAPI.downloadFile({ url: downloadUrl, filename: downloadName })
                     .catch(function (err) {
                         showDownloadProgress(false);
                         if (downloadMsg) downloadMsg.textContent = '下载失败：' + (err && err.message ? err.message : '未知错误');
                     });
             } else {
-                window.location.href = result.data.signedUrl;
+                window.location.href = downloadUrl;
             }
         });
     }
