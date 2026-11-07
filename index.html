@@ -26,6 +26,7 @@
             <div class="nav-links">
                 <a href="#home" class="nav-link nav-link--active" data-page="home">首页</a>
                 <a href="#community" class="nav-link" data-page="community">社区</a>
+                <a href="#store" class="nav-link" data-page="store">商店</a>
                 <a href="#download" class="nav-link" data-page="download">下载</a>
                 <a href="#friends" class="nav-link" id="nav-friends" data-page="friends" hidden>好友<span class="nav-badge" id="friends-badge" hidden>0</span></a>
                 <a href="#profile" class="nav-link" id="nav-profile" data-page="profile" hidden>个人资料</a>
@@ -71,6 +72,50 @@
                         <span class="menu-button__title">进入社区</span>
                     </span>
                 </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- 商店（第一阶段只读：条目来自 store-data.js） -->
+    <section class="page" id="page-store">
+        <div class="page-inner page-inner--wide">
+            <div id="store-list-view">
+                <a class="back-link" href="#home" data-page="home">← 返回首页</a>
+                <h2 class="panel-title">商店</h2>
+
+                <div class="store-toolbar">
+                    <div class="store-filters">
+                        <button class="store-chip store-chip--active" type="button" data-kind="all">全部</button>
+                        <button class="store-chip" type="button" data-kind="game">游戏</button>
+                        <button class="store-chip" type="button" data-kind="app">应用</button>
+                    </div>
+                    <input class="field__input store-search" id="store-search" type="search"
+                           placeholder="搜索名称或简介" autocomplete="off">
+                </div>
+
+                <div class="store-grid" id="store-grid"></div>
+                <p class="friends-empty" id="store-empty" hidden>没有找到相关条目</p>
+            </div>
+
+            <div id="store-detail-view" hidden>
+                <button class="back-link" id="store-back" type="button">← 返回商店</button>
+                <div class="store-detail">
+                    <div class="store-detail__cover" id="store-detail-cover"></div>
+                    <div class="store-detail__info">
+                        <h3 class="store-detail__title" id="store-detail-title"></h3>
+                        <p class="store-detail__meta" id="store-detail-meta"></p>
+                        <p class="store-detail__desc" id="store-detail-desc"></p>
+                        <div class="store-detail__actions">
+                            <button class="friend-action store-download" id="store-download" type="button">下载</button>
+                            <span class="store-detail__size" id="store-detail-size"></span>
+                        </div>
+                        <p class="auth-msg" id="store-msg" role="alert"></p>
+                        <div class="download-progress" id="store-progress" hidden>
+                            <div class="download-progress__bar"><span id="store-progress-fill"></span></div>
+                            <span class="download-progress__text" id="store-progress-text"></span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -468,6 +513,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <script src="supabase-config.js"></script>
     <script src="script.js"></script>
+    <script src="store-data.js"></script>
+    <script src="store.js"></script>
     <script src="auth.js"></script>
 </body>
 </html>
