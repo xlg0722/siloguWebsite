@@ -108,6 +108,10 @@
                             <button class="friend-action store-download" id="store-download" type="button">下载</button>
                             <span class="store-detail__size" id="store-detail-size"></span>
                         </div>
+                        <div class="store-versions" id="store-versions" hidden>
+                            <p class="store-versions__title">可下载版本</p>
+                            <div class="store-versions__list" id="store-versions-list"></div>
+                        </div>
                         <p class="auth-msg" id="store-msg" role="alert"></p>
                         <div class="download-progress" id="store-progress" hidden>
                             <div class="download-progress__bar"><span id="store-progress-fill"></span></div>
@@ -390,6 +394,19 @@
                 <div class="settings-actions">
                     <button class="friend-action" id="settings-choose-dir" type="button">更改目录</button>
                 </div>
+            </div>
+
+            <div class="settings-card" id="settings-about-card" hidden>
+                <h3 class="section-title">版本</h3>
+                <div class="settings-row">
+                    <span class="settings-row__label">当前版本</span>
+                    <span class="settings-row__value" id="settings-version">—</span>
+                </div>
+                <div class="settings-actions">
+                    <button class="friend-action" id="settings-check-update" type="button">检查更新</button>
+                    <button class="friend-action" id="settings-update-download" type="button" hidden>下载新版本</button>
+                </div>
+                <p class="auth-msg" id="settings-update-msg" role="alert"></p>
             </div>
         </div>
     </section>

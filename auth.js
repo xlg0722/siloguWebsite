@@ -58,6 +58,11 @@
     const settingsDownloadCard = document.getElementById('settings-download-card');
     const settingsDownloadDir = document.getElementById('settings-download-dir');
     const settingsChooseDir = document.getElementById('settings-choose-dir');
+    const settingsAboutCard = document.getElementById('settings-about-card');
+    const settingsVersionEl = document.getElementById('settings-version');
+    const settingsCheckUpdate = document.getElementById('settings-check-update');
+    const settingsUpdateDownload = document.getElementById('settings-update-download');
+    const settingsUpdateMsg = document.getElementById('settings-update-msg');
 
     // 好友与聊天
     const navFriends = document.getElementById('nav-friends');
@@ -4168,6 +4173,15 @@
         if (settingsEmail) settingsEmail.textContent = currentUser.email || '';
 
         if (settingsDownloadCard) settingsDownloadCard.hidden = !isDesktop;
+        if (settingsAboutCard) settingsAboutCard.hidden = !isDesktop;
+
+        if (isDesktop && window.desktopAPI && typeof window.desktopAPI.getAppVersion === 'function') {
+            window.desktopAPI.getAppVersion().then(function (version) {
+                if (version && settingsVersionEl) settingsVersionEl.textContent = 'v' + version;
+            }).catch(function () {
+                // 读取失败就保持占位符
+            });
+        }
 
         if (isDesktop && window.desktopAPI && typeof window.desktopAPI.getDownloadDir === 'function') {
             window.desktopAPI.getDownloadDir().then(function (dir) {
@@ -4266,6 +4280,113 @@
                     // 用户取消选择就不做任何事
                 });
             }
+        });
+    }
+
+    // 设置页：版本号与检查更新（仅桌面应用）
+    let pendingUpdateUrl = '';
+    let updateDownloading = false;
+
+    function versionToArray(text) {
+        const match = String(text || '').match(/v?(\d+)\.(\d+)\.(\d+)/i);
+        if (!match) return null;
+        return [Number(match[1]), Number(match[2]), Number(match[3])];
+    }
+
+    function compareVersionList(a, b) {
+        for (let i = 0; i < 3; i++) {
+            if (a[i] !== b[i]) return a[i] > b[i] ? 1 : -1;
+        }
+        return 0;
+    }
+
+    if (settingsCheckUpdate && isDesktop) {
+        settingsCheckUpdate.addEventListener('click', function () {
+            if (settingsUpdateMsg) settingsUpdateMsg.textContent = '正在检查更新…';
+            if (settingsUpdateDownload) settingsUpdateDownload.hidden = true;
+            settingsCheckUpdate.disabled = true;
+
+            const currentPromise = window.desktopAPI.getAppVersion();
+            const listPromise = fetch('https://gitee.com/api/v5/repos/silogu/silogu-app/releases?page=1&per_page=20', {
+                headers: { Accept: 'application/json' }
+            }).then(function (res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            });
+
+            Promise.all([currentPromise, listPromise]).then(function (values) {
+                const current = values[0];
+                const list = Array.isArray(values[1]) ? values[1] : [];
+
+                let latest = null;
+                list.forEach(function (release) {
+                    const version = versionToArray(release && release.tag_name);
+                    if (!version) return;
+                    if (!latest || compareVersionList(version, latest.version) > 0) {
+                        latest = { version: version, tag: release.tag_name, assets: release.assets || [] };
+                    }
+                });
+
+                const currentVersion = versionToArray(current);
+                if (!latest || !currentVersion) throw new Error('没有可用的版本信息');
+
+                if (compareVersionList(latest.version, currentVersion) > 0) {
+                    const exeAsset = latest.assets.filter(function (item) {
+                        return item && item.name && /\.exe$/i.test(item.name);
+                    })[0];
+                    pendingUpdateUrl = (exeAsset && (exeAsset.browser_download_url || exeAsset.download_url)) ||
+                        'https://gitee.com/silogu/silogu-app/releases/download/' + latest.tag + '/siloguApp.exe';
+                    if (settingsUpdateMsg) {
+                        settingsUpdateMsg.textContent = '发现新版本 ' + latest.tag + '（当前 v' + current + '）';
+                    }
+                    if (settingsUpdateDownload) settingsUpdateDownload.hidden = false;
+                } else if (settingsUpdateMsg) {
+                    settingsUpdateMsg.textContent = '已是最新版本 v' + current;
+                }
+            }).catch(function () {
+                if (settingsUpdateMsg) settingsUpdateMsg.textContent = '检查失败，请检查网络后重试';
+            }).then(function () {
+                settingsCheckUpdate.disabled = false;
+            });
+        });
+    }
+
+    if (settingsUpdateDownload && isDesktop) {
+        settingsUpdateDownload.addEventListener('click', function () {
+            if (!pendingUpdateUrl) return;
+            updateDownloading = true;
+            settingsUpdateDownload.disabled = true;
+            if (settingsUpdateMsg) settingsUpdateMsg.textContent = '正在下载新版本…';
+
+            window.desktopAPI.downloadFile({ url: pendingUpdateUrl, filename: 'siloguApp.exe' })
+                .then(function (result) {
+                    updateDownloading = false;
+                    if (settingsUpdateMsg) {
+                        settingsUpdateMsg.textContent = '下载完成：' + (result && result.path ? result.path : '');
+                    }
+                })
+                .catch(function (err) {
+                    updateDownloading = false;
+                    if (settingsUpdateMsg) {
+                        settingsUpdateMsg.textContent = '下载失败：' + (err && err.message ? err.message : '未知错误');
+                    }
+                }).then(function () {
+                    settingsUpdateDownload.disabled = false;
+                });
+        });
+    }
+
+    if (isDesktop && window.desktopAPI && typeof window.desktopAPI.onDownloadProgress === 'function') {
+        window.desktopAPI.onDownloadProgress(function (data) {
+            if (!updateDownloading || !settingsUpdateMsg) return;
+            const received = (data && data.received) || 0;
+            const total = (data && data.total) || 0;
+            settingsUpdateMsg.textContent = total > 0
+                ? '正在下载 ' + Math.min(100, Math.round(received / total * 100)) + '%'
+                : '正在下载…';
+        });
+        window.desktopAPI.onDownloadError(function () {
+            updateDownloading = false;
         });
     }
 

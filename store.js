@@ -1,11 +1,14 @@
 /**
- * 商店页：列表筛选、详情、下载
+ * 商店页：列表筛选、详情、版本列表、下载
  * 数据来自 store-data.js 的 window.STORE_ITEMS（只读阶段）
+ * versionMode='all' 时实时读取 Gitee 发行版列表，所有版本都可下载
+ * versionMode='latest' 时只显示最新版本
  * 下载复用桌面端的原生下载能力，网页端则直接跳转外链
  */
 (function () {
     const items = Array.isArray(window.STORE_ITEMS) ? window.STORE_ITEMS : [];
     const isDesktop = !!(window.desktopAPI && window.desktopAPI.isDesktop);
+    const RELEASES_API = 'https://gitee.com/api/v5/repos/';
 
     const listView = document.getElementById('store-list-view');
     const detailView = document.getElementById('store-detail-view');
@@ -25,10 +28,15 @@
     const progressFill = document.getElementById('store-progress-fill');
     const progressText = document.getElementById('store-progress-text');
     const backBtn = document.getElementById('store-back');
+    const versionsWrap = document.getElementById('store-versions');
+    const versionsList = document.getElementById('store-versions-list');
 
     let activeKind = 'all';
     let keyword = '';
     let currentItem = null;
+    // 每次打开详情自增，用来丢弃过期的异步请求
+    let openToken = 0;
+    let downloading = false;
 
     if (!grid) return;
 
@@ -90,7 +98,8 @@
         const meta = document.createElement('span');
         meta.className = 'store-card__meta';
         meta.textContent = (item.author || '匿名') + ' · ' + (item.version || '') +
-            (item.size ? ' · ' + item.size : '');
+            (item.size ? ' · ' + item.size : '') +
+            (item.versionMode === 'all' ? ' · 多版本' : '');
 
         body.appendChild(top);
         body.appendChild(summary);
@@ -113,10 +122,122 @@
         if (emptyTip) emptyTip.hidden = visible.length > 0;
     }
 
+    // 从发行版资产里挑出真正的安装包，排除 Gitee 自动附加的源码包
+    function pickAsset(release, item) {
+        const assets = (release && release.assets) || [];
+        const keyword = (item && item.assetKeyword) ? item.assetKeyword.toLowerCase() : '';
+        const matched = assets.filter(function (a) {
+            return a && a.name && keyword && a.name.toLowerCase().indexOf(keyword) !== -1;
+        })[0];
+        if (matched) return matched;
+
+        return assets.filter(function (a) {
+            if (!a || !a.name) return false;
+            if (/\.tar\.gz$/i.test(a.name)) return false;
+            // 源码包的名字等于标签名（tag.zip / tag.tar.gz）
+            if (release && a.name === release.tag_name + '.zip') return false;
+            return true;
+        })[0] || null;
+    }
+
+    function fileBaseName(url, fallback) {
+        try {
+            const path = url.split('?')[0].split('/').pop();
+            return path ? decodeURIComponent(path) : fallback;
+        } catch (err) {
+            return fallback;
+        }
+    }
+
+    // 标签形如 v1.0.1 时解析成数组，beta-v1.0-win64 这类返回 null
+    function versionToArray(text) {
+        const match = String(text || '').match(/v?(\d+)\.(\d+)\.(\d+)/i);
+        if (!match) return null;
+        return [Number(match[1]), Number(match[2]), Number(match[3])];
+    }
+
+    function compareVersionList(a, b) {
+        for (let i = 0; i < 3; i++) {
+            if (a[i] !== b[i]) return a[i] > b[i] ? 1 : -1;
+        }
+        return 0;
+    }
+
+    // 发行版接口按创建时间排序，不能保证第一个就是最新版，这里按版本号取最大
+    function pickLatestRelease(releases) {
+        const withVersion = releases.filter(function (release) {
+            return versionToArray(release && release.tag_name);
+        });
+        if (!withVersion.length) return releases[0] || null;
+
+        return withVersion.slice().sort(function (a, b) {
+            return compareVersionList(versionToArray(b.tag_name), versionToArray(a.tag_name));
+        })[0];
+    }
+
+    // 读取 Gitee 发行版列表（浏览器和 Electron 都可直接跨域访问）
+    function fetchReleases(item) {
+        if (!item || !item.repo) return Promise.resolve([]);
+        return fetch(RELEASES_API + item.repo + '/releases?page=1&per_page=20', {
+            headers: { Accept: 'application/json' }
+        }).then(function (res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+        }).then(function (list) {
+            return Array.isArray(list) ? list : [];
+        });
+    }
+
+    function renderVersionRows(item, releases) {
+        if (!versionsList) return;
+        versionsList.innerHTML = '';
+
+        releases.forEach(function (release) {
+            const asset = pickAsset(release, item);
+            if (!asset) return;
+
+            const row = document.createElement('div');
+            row.className = 'store-version';
+
+            const tag = document.createElement('span');
+            tag.className = 'store-version__tag';
+            tag.textContent = release.tag_name;
+
+            const size = document.createElement('span');
+            size.className = 'store-version__size';
+            size.textContent = release.prerelease ? '预览版' : '正式版';
+
+            const action = document.createElement('button');
+            action.type = 'button';
+            action.className = 'friend-action store-version__btn';
+            action.textContent = '下载';
+            action.addEventListener('click', function () {
+                startDownload(item, {
+                    url: asset.browser_download_url || asset.download_url,
+                    fileName: asset.name
+                });
+            });
+
+            row.appendChild(tag);
+            row.appendChild(size);
+            row.appendChild(action);
+            versionsList.appendChild(row);
+        });
+
+        if (!versionsList.children.length && msg) {
+            msg.textContent = '暂时没有可下载的版本';
+        }
+    }
+
     function openDetail(item) {
         currentItem = item;
+        openToken += 1;
+        const token = openToken;
+
         if (msg) msg.textContent = '';
         if (progress) progress.hidden = true;
+        if (versionsWrap) versionsWrap.hidden = true;
+        if (downloadBtn) downloadBtn.disabled = false;
 
         if (detailCover) {
             detailCover.dataset.kind = item.kind;
@@ -131,19 +252,72 @@
             }
         }
         if (detailTitle) detailTitle.textContent = item.title;
+        if (detailDesc) detailDesc.textContent = item.description || item.summary || '';
+        if (detailSize) detailSize.textContent = item.size ? '文件大小：' + item.size : '';
         if (detailMeta) {
             detailMeta.textContent = kindLabel(item.kind) + ' · ' + (item.author || '匿名') +
                 ' · ' + (item.version || '');
         }
-        if (detailDesc) detailDesc.textContent = item.description || item.summary || '';
-        if (detailSize) detailSize.textContent = item.size ? '文件大小：' + item.size : '';
 
         if (listView) listView.hidden = true;
         if (detailView) detailView.hidden = false;
+
+        if (item.versionMode === 'all') {
+            // 多版本：先显示兜底列表，接口回来后替换成最新数据
+            if (downloadBtn) downloadBtn.hidden = true;
+            if (versionsWrap) versionsWrap.hidden = false;
+            if (item.versions && item.versions.length) {
+                renderVersionRows(item, item.versions.map(function (v) {
+                    return { tag_name: v.tag, prerelease: false, assets: [{ name: fileBaseName(v.url, item.fileName), browser_download_url: v.url }] };
+                }));
+            }
+
+            fetchReleases(item).then(function (releases) {
+                if (token !== openToken || !releases.length) return;
+                if (versionsList) versionsList.innerHTML = '';
+                const ordered = releases.slice().sort(function (a, b) {
+                    const va = versionToArray(a.tag_name);
+                    const vb = versionToArray(b.tag_name);
+                    if (!va || !vb) return 0;
+                    return compareVersionList(vb, va);
+                });
+                if (detailMeta && ordered[0]) {
+                    detailMeta.textContent = kindLabel(item.kind) + ' · ' + (item.author || '匿名') +
+                        ' · ' + ordered[0].tag_name;
+                }
+                renderVersionRows(item, ordered);
+            }).catch(function () {
+                // 请求失败就保留兜底列表
+            });
+            return;
+        }
+
+        // 仅最新版：读取最新发行版，更新版本号与下载地址
+        if (downloadBtn) downloadBtn.hidden = false;
+        fetchReleases(item).then(function (releases) {
+            if (token !== openToken || !releases.length) return;
+            const latest = pickLatestRelease(releases);
+            if (!latest) return;
+            const asset = pickAsset(latest, item);
+            if (!asset) return;
+
+            item.url = asset.browser_download_url || asset.download_url;
+            item.fileName = asset.name;
+            item.version = latest.tag_name;
+
+            if (detailMeta) {
+                detailMeta.textContent = kindLabel(item.kind) + ' · ' + (item.author || '匿名') +
+                    ' · ' + latest.tag_name;
+            }
+            if (msg) msg.textContent = '';
+        }).catch(function () {
+            // 离线时继续使用 store-data.js 里写好的最新版信息
+        });
     }
 
     function closeDetail() {
         currentItem = null;
+        openToken += 1;
         if (progress) progress.hidden = true;
         if (detailView) detailView.hidden = true;
         if (listView) listView.hidden = false;
@@ -163,18 +337,20 @@
         }
     }
 
-    function startDownload() {
-        if (!currentItem) return;
+    function startDownload(item, target) {
+        if (!item) return;
         if (msg) msg.textContent = '';
 
-        const url = currentItem.url;
-        const fileName = currentItem.fileName || currentItem.title;
+        const url = (target && target.url) || item.url;
+        const fileName = (target && target.fileName) || item.fileName || item.title;
 
         // 桌面端：原生下载，带进度；网页端：直接跳转外链
         if (isDesktop && window.desktopAPI && typeof window.desktopAPI.downloadFile === 'function') {
+            downloading = true;
             showProgress(true, 0, 0);
             window.desktopAPI.downloadFile({ url: url, filename: fileName })
                 .catch(function (err) {
+                    downloading = false;
                     showProgress(false);
                     if (msg) msg.textContent = '下载失败：' + (err && err.message ? err.message : '未知错误');
                 });
@@ -207,27 +383,32 @@
     }
 
     if (downloadBtn) {
-        downloadBtn.addEventListener('click', startDownload);
+        downloadBtn.addEventListener('click', function () {
+            if (!currentItem) return;
+            startDownload(currentItem, null);
+        });
     }
 
     // 桌面端下载进度
     if (isDesktop && window.desktopAPI) {
         if (typeof window.desktopAPI.onDownloadProgress === 'function') {
             window.desktopAPI.onDownloadProgress(function (data) {
-                if (!currentItem || !detailView || detailView.hidden) return;
+                if (!downloading || !detailView || detailView.hidden) return;
                 showProgress(true, data.received || 0, data.total || 0);
             });
         }
         if (typeof window.desktopAPI.onDownloadDone === 'function') {
             window.desktopAPI.onDownloadDone(function (data) {
-                if (!currentItem) return;
+                if (!downloading) return;
+                downloading = false;
                 showProgress(true, 1, 1);
                 if (msg) msg.textContent = '下载完成：' + (data && data.path ? data.path : '');
             });
         }
         if (typeof window.desktopAPI.onDownloadError === 'function') {
             window.desktopAPI.onDownloadError(function (data) {
-                if (!currentItem) return;
+                if (!downloading) return;
+                downloading = false;
                 showProgress(false);
                 if (msg) msg.textContent = '下载失败：' + (data && data.message ? data.message : '未知错误');
             });
