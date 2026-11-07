@@ -338,11 +338,10 @@
     const pages = document.querySelectorAll('.page');
     const links = document.querySelectorAll('[data-page]');
 
-    const PAGE_NAMES = ['home', 'download', 'versions', 'login', 'register', 'verify', 'profile', 'user', 'friends', 'community', 'store', 'settings'];
+    const PAGE_NAMES = ['home', 'login', 'register', 'verify', 'profile', 'user', 'friends', 'community', 'store', 'settings'];
 
     function showPage(name) {
-        // 版本列表属于下载流程，导航高亮仍停在「下载」
-        const navName = name === 'versions' ? 'download' : name;
+        const navName = name;
 
         // 地址栏与当前页面保持一致，刷新后还能停在这一页
         if (location.hash.slice(1) !== name) {

@@ -49,8 +49,6 @@
     const avatarFallback = document.getElementById('profile-avatar-fallback');
     const profileNameEl = document.getElementById('profile-name');
     const profileEmailEl = document.getElementById('profile-email');
-    const downloadButton = document.getElementById('download-latest');
-    const downloadMsg = document.getElementById('download-msg');
 
     // 设置页
     const navSettings = document.getElementById('nav-settings');
@@ -60,9 +58,6 @@
     const settingsDownloadCard = document.getElementById('settings-download-card');
     const settingsDownloadDir = document.getElementById('settings-download-dir');
     const settingsChooseDir = document.getElementById('settings-choose-dir');
-    const downloadProgress = document.getElementById('download-progress');
-    const downloadProgressFill = document.getElementById('download-progress-fill');
-    const downloadProgressText = document.getElementById('download-progress-text');
 
     // 好友与聊天
     const navFriends = document.getElementById('nav-friends');
@@ -4192,26 +4187,6 @@
         return (n / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
     }
 
-    // 下载进度条：show 控制显隐，received/total 计算百分比
-    function showDownloadProgress(show, received, total) {
-        if (!downloadProgress) return;
-        if (!show) {
-            downloadProgress.hidden = true;
-            return;
-        }
-        downloadProgress.hidden = false;
-        let percent = 0;
-        let text = '准备下载…';
-        if (total && total > 0) {
-            percent = Math.min(100, Math.round((received / total) * 100));
-            text = fmtBytes(received) + ' / ' + fmtBytes(total) + '（' + percent + '%）';
-        } else if (received) {
-            text = fmtBytes(received);
-        }
-        if (downloadProgressFill) downloadProgressFill.style.width = percent + '%';
-        if (downloadProgressText) downloadProgressText.textContent = text;
-    }
-
     window.addEventListener('silgu:page', function (e) {
         const name = e.detail && e.detail.name;
 
@@ -4275,55 +4250,6 @@
         syncUser(result.data.session ? result.data.session.user : null);
     });
 
-    if (downloadButton) {
-        downloadButton.addEventListener('click', async function () {
-            if (downloadMsg) downloadMsg.textContent = '';
-            showDownloadProgress(false);
-
-            const sessionResult = await sb.auth.getSession();
-            if (!sessionResult.data.session) {
-                if (downloadMsg) downloadMsg.textContent = '请先登录再下载';
-                goPage('login');
-                return;
-            }
-
-            downloadButton.disabled = true;
-
-            // 优先走 Gitee 发行版直链（国内快）；未配置时才回退到 Supabase 私有桶签名地址
-            let downloadUrl = cfg.gameUrl || '';
-            let downloadName = cfg.gameFileName || cfg.fileName;
-            if (!downloadUrl) {
-                const result = await sb.storage
-                    .from(cfg.bucket)
-                    .createSignedUrl(cfg.fileName, 600);
-
-                if (result.error) {
-                    downloadButton.disabled = false;
-                    if (downloadMsg) {
-                        downloadMsg.textContent = '下载失败：' + translateError(result.error.message);
-                    }
-                    return;
-                }
-                downloadUrl = result.data.signedUrl;
-                downloadName = cfg.fileName;
-            }
-
-            downloadButton.disabled = false;
-
-            // 桌面应用：交给 Electron 原生下载（可设目录、显示进度）；网页：直接跳转浏览器下载
-            if (isDesktop && window.desktopAPI && typeof window.desktopAPI.downloadFile === 'function') {
-                showDownloadProgress(true, 0, 0);
-                window.desktopAPI.downloadFile({ url: downloadUrl, filename: downloadName })
-                    .catch(function (err) {
-                        showDownloadProgress(false);
-                        if (downloadMsg) downloadMsg.textContent = '下载失败：' + (err && err.message ? err.message : '未知错误');
-                    });
-            } else {
-                window.location.href = downloadUrl;
-            }
-        });
-    }
-
     // 设置页交互：退出登录、更改下载目录
     if (settingsLogout) {
         settingsLogout.addEventListener('click', async function () {
@@ -4343,28 +4269,4 @@
         });
     }
 
-    // 桌面应用：监听原生下载的进度与结果，更新页面进度条
-    if (isDesktop && window.desktopAPI) {
-        if (typeof window.desktopAPI.onDownloadProgress === 'function') {
-            window.desktopAPI.onDownloadProgress(function (data) {
-                showDownloadProgress(true, data ? data.received : 0, data ? data.total : 0);
-            });
-        }
-        if (typeof window.desktopAPI.onDownloadDone === 'function') {
-            window.desktopAPI.onDownloadDone(function (data) {
-                showDownloadProgress(false);
-                if (downloadMsg) {
-                    downloadMsg.textContent = '下载完成：' + (data && data.path ? data.path : '');
-                }
-            });
-        }
-        if (typeof window.desktopAPI.onDownloadError === 'function') {
-            window.desktopAPI.onDownloadError(function (err) {
-                showDownloadProgress(false);
-                if (downloadMsg) {
-                    downloadMsg.textContent = '下载失败：' + (err && err.message ? err.message : '未知错误');
-                }
-            });
-        }
-    }
 })();
