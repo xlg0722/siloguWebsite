@@ -79,13 +79,12 @@
         return text.indexOf(k) !== -1;
     }
 
-    // 封面图：logo / 图标都是黑色线稿，靠 CSS 反白显示在深色封面上
+    // 封面图：logo / 图标都是黑色线稿，铺在浅色图标底上直接显示
     function coverImage(item) {
         const img = document.createElement('img');
         img.className = 'store-cover-img';
         img.alt = '';
         img.src = item.cover;
-        if (item.coverInvert) img.classList.add('store-cover-img--invert');
         if (item.coverPixel) img.classList.add('store-cover-img--pixel');
         return img;
     }
