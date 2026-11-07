@@ -7,6 +7,8 @@
  *   assetKeyword 附件名关键字，用来从发行版里挑出真正的安装包（排除源码包）
  *   versions     versionMode='all' 时的兜底版本列表（接口请求失败时使用）
  *   cover        封面图地址，留空则显示名称首字的渐变封面
+ *   coverInvert  封面图是黑色线稿，需要用滤镜反白显示
+ *   coverPixel   封面图是像素画，放大时保持像素边缘
  */
 window.STORE_ITEMS = [
     {
@@ -30,22 +32,25 @@ window.STORE_ITEMS = [
                 url: 'https://gitee.com/silogu/yourworld/releases/download/beta-v1.0-win64/yourworld-v0.1-win64.zip'
             }
         ],
-        cover: ''
+        cover: 'assets/icon.png',
+        coverInvert: true,
+        coverPixel: true
     },
     {
         id: 'silogu-app',
         kind: 'app',
         title: '小龙果',
         summary: '桌面客户端：社区、好友、聊天和下载，一个窗口搞定。',
-        description: '小龙果桌面应用为便携版，不需要安装。下载后直接双击运行，可在设置页里指定下载目录。',
+        description: '小龙果桌面应用提供安装包，安装后启动更快；后续更新只会下载改动过的文件。',
         author: '小龙果',
-        version: 'v1.0.2',
+        version: 'v1.3.0',
         size: '70.7 MB',
         versionMode: 'latest',
         repo: 'silogu/silogu-app',
         assetKeyword: 'siloguApp',
-        url: 'https://gitee.com/silogu/silogu-app/releases/download/v1.0.2/siloguApp.exe',
-        fileName: 'siloguApp.exe',
-        cover: ''
+        url: 'https://gitee.com/silogu/silogu-app/releases/download/v1.3.0/siloguAppSetup.exe',
+        fileName: 'siloguAppSetup.exe',
+        cover: 'assets/logo.png',
+        coverInvert: true
     }
 ];

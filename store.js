@@ -67,6 +67,17 @@
         return text.indexOf(k) !== -1;
     }
 
+    // 封面图：logo / 图标都是黑色线稿，靠 CSS 反白显示在深色封面上
+    function coverImage(item) {
+        const img = document.createElement('img');
+        img.className = 'store-cover-img';
+        img.alt = '';
+        img.src = item.cover;
+        if (item.coverInvert) img.classList.add('store-cover-img--invert');
+        if (item.coverPixel) img.classList.add('store-cover-img--pixel');
+        return img;
+    }
+
     function buildCard(item) {
         const card = document.createElement('button');
         card.type = 'button';
@@ -78,7 +89,7 @@
         cover.dataset.kind = item.kind;
         if (item.cover) {
             cover.classList.add('store-card__cover--img');
-            cover.style.backgroundImage = 'url("' + item.cover + '")';
+            cover.appendChild(coverImage(item));
         } else {
             cover.textContent = (item.title || '?').slice(0, 1);
         }
@@ -280,13 +291,12 @@
 
         if (detailCover) {
             detailCover.dataset.kind = item.kind;
+            while (detailCover.firstChild) detailCover.removeChild(detailCover.firstChild);
             if (item.cover) {
                 detailCover.classList.add('store-detail__cover--img');
-                detailCover.style.backgroundImage = 'url("' + item.cover + '")';
-                detailCover.textContent = '';
+                detailCover.appendChild(coverImage(item));
             } else {
                 detailCover.classList.remove('store-detail__cover--img');
-                detailCover.style.backgroundImage = '';
                 detailCover.textContent = (item.title || '?').slice(0, 1);
             }
         }
