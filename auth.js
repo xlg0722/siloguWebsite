@@ -4316,22 +4316,10 @@
         });
     }
 
-    // 设置页：版本号与检查更新（仅桌面应用）
-    let pendingUpdateUrl = '';
+    // 设置页：版本号与检查更新（仅桌面应用，走主进程的增量更新）
+    let pendingUpdateInfo = null;
+    let restartPending = false;
     let updateDownloading = false;
-
-    function versionToArray(text) {
-        const match = String(text || '').match(/v?(\d+)\.(\d+)\.(\d+)/i);
-        if (!match) return null;
-        return [Number(match[1]), Number(match[2]), Number(match[3])];
-    }
-
-    function compareVersionList(a, b) {
-        for (let i = 0; i < 3; i++) {
-            if (a[i] !== b[i]) return a[i] > b[i] ? 1 : -1;
-        }
-        return 0;
-    }
 
     if (settingsCheckUpdate && isDesktop) {
         settingsCheckUpdate.addEventListener('click', function () {
@@ -4339,42 +4327,22 @@
             if (settingsUpdateDownload) settingsUpdateDownload.hidden = true;
             settingsCheckUpdate.disabled = true;
 
-            const currentPromise = window.desktopAPI.getAppVersion();
-            const listPromise = fetch('https://gitee.com/api/v5/repos/silogu/silogu-app/releases?page=1&per_page=20', {
-                headers: { Accept: 'application/json' }
-            }).then(function (res) {
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                return res.json();
-            });
-
-            Promise.all([currentPromise, listPromise]).then(function (values) {
-                const current = values[0];
-                const list = Array.isArray(values[1]) ? values[1] : [];
-
-                let latest = null;
-                list.forEach(function (release) {
-                    const version = versionToArray(release && release.tag_name);
-                    if (!version) return;
-                    if (!latest || compareVersionList(version, latest.version) > 0) {
-                        latest = { version: version, tag: release.tag_name, assets: release.assets || [] };
-                    }
-                });
-
-                const currentVersion = versionToArray(current);
-                if (!latest || !currentVersion) throw new Error('没有可用的版本信息');
-
-                if (compareVersionList(latest.version, currentVersion) > 0) {
-                    const exeAsset = latest.assets.filter(function (item) {
-                        return item && item.name && /\.exe$/i.test(item.name);
-                    })[0];
-                    pendingUpdateUrl = (exeAsset && (exeAsset.browser_download_url || exeAsset.download_url)) ||
-                        'https://gitee.com/silogu/silogu-app/releases/download/' + latest.tag + '/siloguApp.exe';
+            window.desktopAPI.checkUpdates().then(function (info) {
+                if (!info || !info.hasUpdate) {
                     if (settingsUpdateMsg) {
-                        settingsUpdateMsg.textContent = '发现新版本 ' + latest.tag + '（当前 v' + current + '）';
+                        settingsUpdateMsg.textContent = '已是最新版本 v' + ((info && info.current) || '');
                     }
-                    if (settingsUpdateDownload) settingsUpdateDownload.hidden = false;
-                } else if (settingsUpdateMsg) {
-                    settingsUpdateMsg.textContent = '已是最新版本 v' + current;
+                    return;
+                }
+                pendingUpdateInfo = info;
+                if (settingsUpdateMsg) {
+                    settingsUpdateMsg.textContent = info.full
+                        ? '发现新版本 v' + info.latest + '，需要下载完整安装包'
+                        : '发现新版本 v' + info.latest + '，需要替换 ' + info.fileCount + ' 个文件';
+                }
+                if (settingsUpdateDownload) {
+                    settingsUpdateDownload.hidden = false;
+                    settingsUpdateDownload.textContent = info.full ? '下载安装包' : '下载并更新';
                 }
             }).catch(function () {
                 if (settingsUpdateMsg) settingsUpdateMsg.textContent = '检查失败，请检查网络后重试';
@@ -4386,19 +4354,27 @@
 
     if (settingsUpdateDownload && isDesktop) {
         settingsUpdateDownload.addEventListener('click', function () {
-            if (!pendingUpdateUrl) return;
-            updateDownloading = true;
-            settingsUpdateDownload.disabled = true;
-            if (settingsUpdateMsg) settingsUpdateMsg.textContent = '正在下载新版本…';
+            // 已经替换完文件，按钮变成「立即重启」
+            if (restartPending) {
+                window.desktopAPI.restartApp();
+                return;
+            }
+            if (!pendingUpdateInfo) return;
 
-            window.desktopAPI.downloadFile({ url: pendingUpdateUrl, filename: 'siloguApp.exe' })
-                .then(function (result) {
+            // 需要完整安装包：直接原生下载
+            if (pendingUpdateInfo.full) {
+                updateDownloading = true;
+                settingsUpdateDownload.disabled = true;
+                if (settingsUpdateMsg) settingsUpdateMsg.textContent = '正在下载安装包…';
+                window.desktopAPI.downloadFile({
+                    url: pendingUpdateInfo.installer,
+                    filename: 'siloguAppSetup.exe'
+                }).then(function (result) {
                     updateDownloading = false;
                     if (settingsUpdateMsg) {
                         settingsUpdateMsg.textContent = '下载完成：' + (result && result.path ? result.path : '');
                     }
-                })
-                .catch(function (err) {
+                }).catch(function (err) {
                     updateDownloading = false;
                     if (settingsUpdateMsg) {
                         settingsUpdateMsg.textContent = '下载失败：' + (err && err.message ? err.message : '未知错误');
@@ -4406,6 +4382,27 @@
                 }).then(function () {
                     settingsUpdateDownload.disabled = false;
                 });
+                return;
+            }
+
+            // 增量更新：只下修改过的文件
+            settingsUpdateDownload.disabled = true;
+            if (settingsUpdateMsg) settingsUpdateMsg.textContent = '正在下载需要替换的文件…';
+            window.desktopAPI.applyUpdate().then(function (res) {
+                if (!res || !res.changed) throw new Error('没有文件更新成功');
+                restartPending = true;
+                if (settingsUpdateMsg) {
+                    settingsUpdateMsg.textContent = '已替换 ' + res.changed + ' 个文件，重启后生效' +
+                        (res.failed && res.failed.length ? '（失败 ' + res.failed.length + ' 个）' : '');
+                }
+                settingsUpdateDownload.textContent = '立即重启';
+                settingsUpdateDownload.disabled = false;
+            }).catch(function (err) {
+                if (settingsUpdateMsg) {
+                    settingsUpdateMsg.textContent = '更新失败：' + (err && err.message ? err.message : '未知错误');
+                }
+                settingsUpdateDownload.disabled = false;
+            });
         });
     }
 
