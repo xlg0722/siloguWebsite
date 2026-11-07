@@ -338,7 +338,7 @@
     const pages = document.querySelectorAll('.page');
     const links = document.querySelectorAll('[data-page]');
 
-    const PAGE_NAMES = ['home', 'login', 'register', 'verify', 'profile', 'user', 'friends', 'community', 'store', 'settings'];
+    const PAGE_NAMES = ['home', 'login', 'register', 'verify', 'profile', 'user', 'friends', 'community', 'store', 'feedback', 'admin', 'settings'];
 
     function showPage(name) {
         const navName = name;
@@ -400,9 +400,6 @@
         if (done || !loader) return;
         done = true;
         loader.classList.add('is-hidden');
-        setTimeout(function () {
-            if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
-        }, 450);
     }
 
     if (document.readyState === 'complete') {
@@ -411,4 +408,14 @@
         window.addEventListener('load', hide);
     }
     setTimeout(hide, 2500);
+
+    // 供其它页面在加载数据时复用同一套圆圈动画
+    window.SilguLoader = {
+        show: function () {
+            if (loader) loader.classList.remove('is-hidden');
+        },
+        hide: function () {
+            if (loader) loader.classList.add('is-hidden');
+        }
+    };
 })();

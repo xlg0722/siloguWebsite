@@ -52,6 +52,9 @@
 
     // 设置页
     const navSettings = document.getElementById('nav-settings');
+    const navAdmin = document.getElementById('nav-admin');
+    // 管理员邮箱：只有这个账号会看到「信息」入口
+    const ADMIN_EMAIL = 'lcw201407@qq.com';
     const settingsNickname = document.getElementById('settings-nickname');
     const settingsEmail = document.getElementById('settings-email');
     const settingsLogout = document.getElementById('settings-logout');
@@ -274,6 +277,11 @@
         if (navProfile) navProfile.hidden = !currentUser;
         if (navFriends) navFriends.hidden = !currentUser;
         if (navSettings) navSettings.hidden = !currentUser;
+        if (navAdmin) {
+            const isAdmin = !!(currentUser && (currentUser.email || '').toLowerCase() === ADMIN_EMAIL);
+            navAdmin.hidden = !isAdmin;
+            if (!isAdmin && location.hash === '#admin') goPage('home');
+        }
         renderBadge();
 
         if (currentUser) {
@@ -968,8 +976,9 @@
 
         if (userBioEl) {
             const bio = (viewedUser.bio || '').trim();
-            userBioEl.textContent = bio;
-            userBioEl.hidden = !bio;
+            // 没写签名时也显示占位，避免用户以为这一块不存在
+            userBioEl.textContent = bio || '这个人很神秘，还没有写个性签名';
+            userBioEl.hidden = false;
         }
         if (userMetaEl) userMetaEl.textContent = '';
         if (userGallery) {
@@ -1002,6 +1011,16 @@
                 if (viewedUser) renderUserFriendState();
             });
         }
+
+        // 社区列表里的资料可能已过期，这里再拉一次最新签名
+        sb.from('profiles').select('id, bio').eq('id', viewedUser.id).single().then(function (result) {
+            if (!result.data || !viewedUser || viewedUser.id !== result.data.id) return;
+            viewedUser.bio = result.data.bio || '';
+            if (userBioEl) {
+                const bio = (viewedUser.bio || '').trim();
+                userBioEl.textContent = bio || '这个人很神秘，还没有写个性签名';
+            }
+        });
     }
 
     // 好友资料页里的「发消息」：进入好友页并打开聊天
@@ -2230,6 +2249,10 @@
 
         if (socialRefreshing) return socialRefreshing;
 
+        // 好友页打开时用全屏圆圈，避免好友列表空白
+        const onFriendsPage = /#friends/.test(location.hash);
+        if (onFriendsPage && window.SilguLoader) window.SilguLoader.show();
+
         socialRefreshing = Promise.all([
             loadFriends(),
             loadRequests(),
@@ -2239,6 +2262,7 @@
             socialLoadedAt = Date.now();
         }).finally(function () {
             socialRefreshing = null;
+            if (onFriendsPage && window.SilguLoader) window.SilguLoader.hide();
         });
 
         return socialRefreshing;
@@ -2419,6 +2443,8 @@
     async function loadMessages() {
         if (!currentUser || !activeFriend) return;
 
+        if (window.SilguLoader) window.SilguLoader.show();
+
         const target = activeFriend;
         const keyRefresh = refreshFriendKey(target);
         const me = currentUser.id;
@@ -2437,12 +2463,14 @@
 
         if (result.error) {
             setSocialMsg(chatMsg, '消息加载失败：' + socialError(result.error));
+            if (window.SilguLoader) window.SilguLoader.hide();
             return;
         }
 
         setSocialMsg(chatMsg, '');
         // 取最近 200 条后再正序展示
         await renderMessages((result.data || []).slice().reverse());
+        if (window.SilguLoader) window.SilguLoader.hide();
     }
 
     async function markChatRead() {
@@ -3666,6 +3694,9 @@
         if (!force && !append && communityLoadedAt && Date.now() - communityLoadedAt < 10000) return;
         if (append && (communityLoadingMore || !communityHasMore)) return;
 
+        // 首次加载社区时用全屏圆圈，避免列表空白一段时间
+        if (!append && window.SilguLoader) window.SilguLoader.show();
+
         if (append) {
             communityLoadingMore = true;
             renderCommunityMore();
@@ -3707,6 +3738,7 @@
 
         if (result.error) {
             communityLoadingMore = false;
+            if (window.SilguLoader) window.SilguLoader.hide();
             if (!append) {
                 communityPosts = [];
                 communityHasMore = false;
@@ -3816,6 +3848,7 @@
         communityLoadingMore = false;
         communityLoadedAt = Date.now();
         renderCommunityPosts(append);
+        if (!append && window.SilguLoader) window.SilguLoader.hide();
 
         // 当前选中的消息如果已不存在，清空右侧
         if (activeCommunityPostId) {
@@ -4389,5 +4422,431 @@
             updateDownloading = false;
         });
     }
+
+    // ===== 反馈中心：功能投票 + 建议 / Bug =====
+    const feedbackPolls = document.getElementById('feedback-polls');
+    const feedbackPollsEmpty = document.getElementById('feedback-polls-empty');
+    const feedbackPosts = document.getElementById('feedback-posts');
+    const feedbackPostsEmpty = document.getElementById('feedback-posts-empty');
+    const feedbackForm = document.getElementById('feedback-form');
+    const feedbackKind = document.getElementById('feedback-kind');
+    const feedbackTitle = document.getElementById('feedback-title');
+    const feedbackBody = document.getElementById('feedback-body');
+    const feedbackMsg = document.getElementById('feedback-msg');
+
+    const adminReports = document.getElementById('admin-reports');
+    const adminReportsEmpty = document.getElementById('admin-reports-empty');
+    const adminPolls = document.getElementById('admin-polls');
+    const adminPosts = document.getElementById('admin-posts');
+    const adminPostsEmpty = document.getElementById('admin-posts-empty');
+    const adminPollForm = document.getElementById('admin-poll-form');
+    const adminPollTitle = document.getElementById('admin-poll-title');
+    const adminPollDesc = document.getElementById('admin-poll-desc');
+    const adminPollOptions = document.getElementById('admin-poll-options');
+    const adminPollMsg = document.getElementById('admin-poll-msg');
+
+    function isAdminUser() {
+        return !!(currentUser && (currentUser.email || '').toLowerCase() === ADMIN_EMAIL);
+    }
+
+    // 表还没建时给出明确指引，而不是空白
+    function dbHint(err) {
+        const text = (err && err.message) || '';
+        if (/does not exist|schema cache|Could not find the table/i.test(text)) {
+            return '数据表还没创建：请先在 Supabase 的 SQL Editor 中运行 supabase/feedback.sql';
+        }
+        return socialError(err);
+    }
+
+    function feedbackTime(value) {
+        if (!value) return '';
+        try {
+            return new Date(value).toLocaleString('zh-CN', {
+                month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+            });
+        } catch (err) {
+            return '';
+        }
+    }
+
+    function renderPolls(container, emptyEl, polls, counts, myVotes) {
+        if (!container) return;
+        container.textContent = '';
+
+        polls.forEach(function (poll) {
+            const card = document.createElement('div');
+            card.className = 'poll-card';
+
+            const head = document.createElement('div');
+            head.className = 'poll-card__head';
+            const title = document.createElement('span');
+            title.className = 'poll-card__title';
+            title.textContent = poll.title || '（无标题）';
+            const meta = document.createElement('span');
+            meta.className = 'poll-card__meta';
+
+            const pollCounts = counts[poll.id] || {};
+            let total = 0;
+            Object.keys(pollCounts).forEach(function (k) { total += pollCounts[k]; });
+            meta.textContent = total + ' 人已投票';
+            head.appendChild(title);
+            head.appendChild(meta);
+
+            const desc = document.createElement('p');
+            desc.className = 'poll-card__desc';
+            desc.textContent = poll.description || '';
+
+            const options = (poll.feature_poll_options || []).slice().sort(function (a, b) {
+                return (a.position || 0) - (b.position || 0);
+            });
+
+            const list = document.createElement('div');
+            list.className = 'poll-options';
+            options.forEach(function (option) {
+                const count = pollCounts[option.id] || 0;
+                const percent = total > 0 ? Math.round(count / total * 100) : 0;
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'poll-option' + (myVotes[poll.id] === option.id ? ' poll-option--voted' : '');
+                btn.textContent = option.label;
+
+                const num = document.createElement('span');
+                num.className = 'poll-option__count';
+                num.textContent = count + ' 票 · ' + percent + '%';
+                btn.appendChild(num);
+
+                btn.addEventListener('click', function () {
+                    castVote(poll.id, option.id);
+                });
+                list.appendChild(btn);
+            });
+
+            card.appendChild(head);
+            if (poll.description) card.appendChild(desc);
+            card.appendChild(list);
+            container.appendChild(card);
+        });
+
+        if (emptyEl) emptyEl.hidden = polls.length > 0;
+    }
+
+    async function loadPolls() {
+        if (!feedbackPolls && !adminPolls) return;
+        const result = await sb.from('feature_polls')
+            .select('id, title, description, created_at, feature_poll_options(id, label, position)')
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+        if (result.error) {
+            if (feedbackPolls) feedbackPolls.textContent = '';
+            if (feedbackPollsEmpty) {
+                feedbackPollsEmpty.hidden = false;
+                feedbackPollsEmpty.textContent = dbHint(result.error);
+            }
+            if (adminPolls) adminPolls.textContent = '';
+            return;
+        }
+
+        const polls = result.data || [];
+        const votesResult = await sb.from('feature_poll_votes')
+            .select('poll_id, option_id, user_id');
+
+        const counts = {};
+        const myVotes = {};
+        if (!votesResult.error) {
+            (votesResult.data || []).forEach(function (vote) {
+                if (!counts[vote.poll_id]) counts[vote.poll_id] = {};
+                counts[vote.poll_id][vote.option_id] = (counts[vote.poll_id][vote.option_id] || 0) + 1;
+                if (currentUser && vote.user_id === currentUser.id) {
+                    myVotes[vote.poll_id] = vote.option_id;
+                }
+            });
+        }
+
+        renderPolls(feedbackPolls, feedbackPollsEmpty, polls, counts, myVotes);
+        renderPolls(adminPolls, null, polls, counts, myVotes);
+    }
+
+    async function castVote(pollId, optionId) {
+        if (!currentUser) {
+            setSocialMsg(feedbackMsg, '请先登录再投票');
+            goPage('login');
+            return;
+        }
+        const result = await sb.from('feature_poll_votes').upsert({
+            poll_id: pollId,
+            option_id: optionId,
+            user_id: currentUser.id
+        }, { onConflict: 'poll_id,user_id' });
+
+        if (result.error) {
+            setSocialMsg(feedbackMsg, '投票失败：' + dbHint(result.error));
+            return;
+        }
+        setSocialMsg(feedbackMsg, '');
+        await loadPolls();
+    }
+
+    async function loadFeedbackPosts(target, emptyEl) {
+        if (!target) return;
+        const result = await sb.from('feedback_posts')
+            .select('id, author_id, kind, title, body, created_at')
+            .order('created_at', { ascending: false })
+            .limit(40);
+
+        if (result.error) {
+            target.textContent = '';
+            if (emptyEl) {
+                emptyEl.hidden = false;
+                emptyEl.textContent = dbHint(result.error);
+            }
+            return;
+        }
+
+        const posts = result.data || [];
+        const authorIds = [];
+        posts.forEach(function (post) {
+            if (post.author_id && authorIds.indexOf(post.author_id) < 0) authorIds.push(post.author_id);
+        });
+
+        let authors = [];
+        if (authorIds.length) {
+            authors = await fetchProfiles(authorIds);
+        }
+        const authorMap = {};
+        authors.forEach(function (person) {
+            authorMap[person.id] = normalizeProfile(person);
+        });
+
+        target.textContent = '';
+        posts.forEach(function (post) {
+            const item = document.createElement('div');
+            item.className = 'feedback-item';
+
+            const head = document.createElement('div');
+            head.className = 'feedback-item__head';
+
+            const title = document.createElement('span');
+            title.className = 'feedback-item__title';
+            title.textContent = (post.kind === 'bug' ? '【Bug】' : '【建议】') + (post.title || '');
+
+            const meta = document.createElement('span');
+            meta.className = 'feedback-item__meta';
+            const author = authorMap[post.author_id];
+            meta.textContent = (author ? author.nickname : '玩家') + ' · ' + feedbackTime(post.created_at);
+
+            const body = document.createElement('div');
+            body.className = 'feedback-item__body';
+            body.textContent = post.body || '';
+
+            head.appendChild(title);
+            head.appendChild(meta);
+            item.appendChild(head);
+            item.appendChild(body);
+            target.appendChild(item);
+        });
+
+        if (emptyEl) emptyEl.hidden = posts.length > 0;
+    }
+
+    if (feedbackForm) {
+        feedbackForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            if (!currentUser) {
+                setSocialMsg(feedbackMsg, '请先登录再提交');
+                goPage('login');
+                return;
+            }
+            const title = (feedbackTitle.value || '').trim();
+            const body = (feedbackBody.value || '').trim();
+            if (!title || !body) {
+                setSocialMsg(feedbackMsg, '标题和内容都要写');
+                return;
+            }
+
+            const submitBtn = document.getElementById('feedback-submit');
+            if (submitBtn) submitBtn.disabled = true;
+
+            const result = await sb.from('feedback_posts').insert({
+                author_id: currentUser.id,
+                kind: feedbackKind && feedbackKind.value === 'bug' ? 'bug' : 'idea',
+                title: title,
+                body: body
+            });
+
+            if (submitBtn) submitBtn.disabled = false;
+
+            if (result.error) {
+                setSocialMsg(feedbackMsg, '提交失败：' + dbHint(result.error));
+                return;
+            }
+
+            feedbackTitle.value = '';
+            feedbackBody.value = '';
+            setSocialMsg(feedbackMsg, '提交成功，谢谢你！');
+            await loadFeedbackPosts(feedbackPosts, feedbackPostsEmpty);
+        });
+    }
+
+    // 管理页：举报记录（表结构未知，按字段尽量还原证据）
+    async function loadAdminReports() {
+        if (!adminReports) return;
+        const result = await sb.from('reports')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        if (result.error) {
+            adminReports.textContent = '';
+            if (adminReportsEmpty) {
+                adminReportsEmpty.hidden = false;
+                adminReportsEmpty.textContent = dbHint(result.error);
+            }
+            return;
+        }
+
+        const rows = result.data || [];
+        adminReports.textContent = '';
+
+        rows.forEach(function (row) {
+            const item = document.createElement('div');
+            item.className = 'feedback-item';
+
+            const head = document.createElement('div');
+            head.className = 'feedback-item__head';
+            const title = document.createElement('span');
+            title.className = 'feedback-item__title';
+            title.textContent = '被举报人：' + (row.target_id || row.reported_id || row.target || '未知');
+
+            const meta = document.createElement('span');
+            meta.className = 'feedback-item__meta';
+            meta.textContent = feedbackTime(row.created_at);
+            head.appendChild(title);
+            head.appendChild(meta);
+
+            const body = document.createElement('div');
+            body.className = 'feedback-item__body';
+            body.textContent = '原因：' + (row.reason || row.type || '未填写');
+
+            const evidence = document.createElement('div');
+            evidence.className = 'feedback-item__evidence';
+            const evidenceText = row.evidence || row.detail || row.description || '';
+            evidence.textContent = typeof evidenceText === 'object'
+                ? JSON.stringify(evidenceText, null, 2)
+                : (evidenceText || JSON.stringify(row, null, 2));
+
+            item.appendChild(head);
+            item.appendChild(body);
+            item.appendChild(evidence);
+            adminReports.appendChild(item);
+        });
+
+        if (adminReportsEmpty) adminReportsEmpty.hidden = rows.length > 0;
+    }
+
+    if (adminPollForm) {
+        adminPollForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            if (!isAdminUser()) {
+                setSocialMsg(adminPollMsg, '只有管理员可以发布投票');
+                return;
+            }
+
+            const title = (adminPollTitle.value || '').trim();
+            const description = (adminPollDesc.value || '').trim();
+            const options = (adminPollOptions.value || '').split('\n')
+                .map(function (line) { return line.trim(); })
+                .filter(function (line) { return line; });
+
+            if (!title) {
+                setSocialMsg(adminPollMsg, '请填写投票标题');
+                return;
+            }
+            if (options.length < 2) {
+                setSocialMsg(adminPollMsg, '至少要有 2 个选项');
+                return;
+            }
+
+            const pollResult = await sb.from('feature_polls')
+                .insert({ title: title, description: description, created_by: currentUser.id })
+                .select('id')
+                .single();
+
+            if (pollResult.error || !pollResult.data) {
+                setSocialMsg(adminPollMsg, '发布失败：' + dbHint(pollResult.error));
+                return;
+            }
+
+            const optionRows = options.map(function (label, index) {
+                return { poll_id: pollResult.data.id, label: label, position: index };
+            });
+            const optionResult = await sb.from('feature_poll_options').insert(optionRows);
+
+            if (optionResult.error) {
+                setSocialMsg(adminPollMsg, '选项写入失败：' + dbHint(optionResult.error));
+                return;
+            }
+
+            adminPollTitle.value = '';
+            adminPollDesc.value = '';
+            adminPollOptions.value = '';
+            setSocialMsg(adminPollMsg, '投票已发布');
+            await loadPolls();
+        });
+    }
+
+    // 反馈页的标签切换
+    const feedbackTabs = Array.prototype.slice.call(document.querySelectorAll('[data-feedback-tab]'));
+    function switchFeedbackTab(name) {
+        feedbackTabs.forEach(function (tab) {
+            tab.classList.toggle('store-chip--active', tab.dataset.feedbackTab === name);
+        });
+        const pollsPanel = document.getElementById('feedback-polls-panel');
+        const postsPanel = document.getElementById('feedback-posts-panel');
+        if (pollsPanel) pollsPanel.hidden = name !== 'polls';
+        if (postsPanel) postsPanel.hidden = name !== 'posts';
+    }
+    feedbackTabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            switchFeedbackTab(tab.dataset.feedbackTab);
+        });
+    });
+
+    const adminTabs = Array.prototype.slice.call(document.querySelectorAll('[data-admin-tab]'));
+    function switchAdminTab(name) {
+        adminTabs.forEach(function (tab) {
+            tab.classList.toggle('store-chip--active', tab.dataset.adminTab === name);
+        });
+        const reportsPanel = document.getElementById('admin-reports-panel');
+        const pollsPanel = document.getElementById('admin-polls-panel');
+        const postsPanel = document.getElementById('admin-posts-panel');
+        if (reportsPanel) reportsPanel.hidden = name !== 'reports';
+        if (pollsPanel) pollsPanel.hidden = name !== 'polls';
+        if (postsPanel) postsPanel.hidden = name !== 'posts';
+    }
+    adminTabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            switchAdminTab(tab.dataset.adminTab);
+        });
+    });
+
+    window.addEventListener('silgu:page', function (e) {
+        const name = e.detail && e.detail.name;
+        if (name === 'feedback') {
+            loadPolls();
+            loadFeedbackPosts(feedbackPosts, feedbackPostsEmpty);
+            return;
+        }
+        if (name === 'admin') {
+            if (!isAdminUser()) {
+                goPage('home');
+                return;
+            }
+            loadAdminReports();
+            loadPolls();
+            loadFeedbackPosts(adminPosts, adminPostsEmpty);
+        }
+    });
 
 })();

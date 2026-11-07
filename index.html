@@ -27,6 +27,8 @@
                 <a href="#home" class="nav-link nav-link--active" data-page="home">首页</a>
                 <a href="#community" class="nav-link" data-page="community">社区</a>
                 <a href="#store" class="nav-link" data-page="store">商店</a>
+                <a href="#feedback" class="nav-link" data-page="feedback">反馈</a>
+                <a href="#admin" class="nav-link" id="nav-admin" data-page="admin" hidden>信息</a>
                 <a href="#friends" class="nav-link" id="nav-friends" data-page="friends" hidden>好友<span class="nav-badge" id="friends-badge" hidden>0</span></a>
                 <a href="#profile" class="nav-link" id="nav-profile" data-page="profile" hidden>个人资料</a>
                 <div class="nav-notice" id="nav-notice-wrap" hidden>
@@ -123,7 +125,92 @@
         </div>
     </section>
 
-    <!-- 社区 -->
+    <!-- 反馈中心：功能投票 + 建议/Bug -->
+    <section class="page" id="page-feedback">
+        <div class="page-inner">
+            <h2 class="section-title">反馈中心</h2>
+            <p class="auth-sub">给新功能投票，或者提交你的建议与 Bug</p>
+
+            <div class="store-chips">
+                <button class="store-chip store-chip--active" type="button" data-feedback-tab="polls">功能投票</button>
+                <button class="store-chip" type="button" data-feedback-tab="posts">建议 / Bug</button>
+            </div>
+
+            <div id="feedback-polls-panel">
+                <div id="feedback-polls"></div>
+                <p class="friends-empty" id="feedback-polls-empty" hidden>还没有进行中的投票，稍后再来看看</p>
+            </div>
+
+            <div id="feedback-posts-panel" hidden>
+                <div class="settings-card">
+                    <h3 class="section-title">提交建议或 Bug</h3>
+                    <form id="feedback-form">
+                        <div class="settings-row">
+                            <span class="settings-row__label">类型</span>
+                            <select class="field__input" id="feedback-kind">
+                                <option value="idea">新功能建议</option>
+                                <option value="bug">Bug 反馈</option>
+                            </select>
+                        </div>
+                        <input class="field__input" id="feedback-title" type="text" maxlength="80"
+                               placeholder="一句话标题，例如：希望加个夜间模式">
+                        <textarea class="field__input" id="feedback-body" rows="4" maxlength="2000"
+                                  placeholder="详细说明：怎么出现的、你希望它变成什么样…"></textarea>
+                        <div class="settings-actions">
+                            <button class="friend-action" id="feedback-submit" type="submit">提交</button>
+                        </div>
+                        <p class="auth-msg" id="feedback-msg" role="alert"></p>
+                    </form>
+                </div>
+                <div id="feedback-posts"></div>
+                <p class="friends-empty" id="feedback-posts-empty" hidden>还没有人提交，来写第一条吧</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 管理员信息页：举报、投票、建议 -->
+    <section class="page" id="page-admin">
+        <div class="page-inner">
+            <h2 class="section-title">信息</h2>
+            <p class="auth-sub">只有管理员可以看到：举报证据、玩家投票与建议</p>
+
+            <div class="store-chips">
+                <button class="store-chip store-chip--active" type="button" data-admin-tab="reports">举报</button>
+                <button class="store-chip" type="button" data-admin-tab="polls">投票</button>
+                <button class="store-chip" type="button" data-admin-tab="posts">建议 / Bug</button>
+            </div>
+
+            <div id="admin-reports-panel">
+                <div id="admin-reports"></div>
+                <p class="friends-empty" id="admin-reports-empty" hidden>暂无举报记录</p>
+            </div>
+
+            <div id="admin-polls-panel" hidden>
+                <div class="settings-card">
+                    <h3 class="section-title">发布投票</h3>
+                    <form id="admin-poll-form">
+                        <input class="field__input" id="admin-poll-title" type="text" maxlength="80"
+                               placeholder="投票标题，例如：下一版先做什么">
+                        <textarea class="field__input" id="admin-poll-desc" rows="2" maxlength="500"
+                                  placeholder="投票说明（可选）"></textarea>
+                        <textarea class="field__input" id="admin-poll-options" rows="4"
+                                  placeholder="选项，一行一个（至少 2 个）"></textarea>
+                        <div class="settings-actions">
+                            <button class="friend-action" type="submit">发布投票</button>
+                        </div>
+                        <p class="auth-msg" id="admin-poll-msg" role="alert"></p>
+                    </form>
+                </div>
+                <div id="admin-polls"></div>
+            </div>
+
+            <div id="admin-posts-panel" hidden>
+                <div id="admin-posts"></div>
+                <p class="friends-empty" id="admin-posts-empty" hidden>暂无建议或 Bug</p>
+            </div>
+        </div>
+    </section>
+
     <section class="page" id="page-community">
         <div class="page-inner page-inner--wide page-inner--community">
             <a class="back-link" href="#home" data-page="home">← 返回首页</a>
