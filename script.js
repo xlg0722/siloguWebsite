@@ -409,6 +409,15 @@
     }
     setTimeout(hide, 2500);
 
+    // 生成一个独立的圆圈动画，插到任意区域里局部显示，不遮住整页
+    function createDots() {
+        const wrap = document.createElement('span');
+        wrap.className = 'loader-dots';
+        wrap.setAttribute('aria-hidden', 'true');
+        for (let i = 0; i < 5; i++) wrap.appendChild(document.createElement('span'));
+        return wrap;
+    }
+
     // 供其它页面在加载数据时复用同一套圆圈动画
     window.SilguLoader = {
         show: function () {
@@ -416,6 +425,7 @@
         },
         hide: function () {
             if (loader) loader.classList.add('is-hidden');
-        }
+        },
+        dots: createDots
     };
 })();
