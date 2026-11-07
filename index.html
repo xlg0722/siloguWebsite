@@ -357,3 +357,220 @@
         <div class="page-inner">
             <a class="back-link" href="#home" data-page="home">← 返回首页</a>
             <h2 class="panel-title">个人资料</h2>
+
+            <div class="profile-head">
+                <div class="profile-avatar-wrap">
+                    <button class="profile-avatar" id="avatar-pick" type="button" title="查看我的公开资料" aria-label="查看我的公开资料">
+                        <img class="profile-avatar__img" id="profile-avatar-img" alt="" hidden>
+                        <span class="profile-avatar__fallback" id="profile-avatar-fallback"></span>
+                    </button>
+                    <button class="profile-avatar-edit" id="avatar-edit" type="button">更换头像</button>
+                </div>
+                <div class="profile-meta">
+                    <p class="profile-name" id="profile-name"></p>
+                    <p class="profile-email" id="profile-email"></p>
+                </div>
+            </div>
+            <p class="profile-tip">点头像看自己的公开资料（JPG / PNG / WebP / GIF，2MB 以内）</p>
+            <input type="file" id="avatar-file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+
+            <form class="auth-form profile-form" id="profile-form" novalidate>
+                <label class="field">
+                    <span class="field__label">昵称</span>
+                    <input class="field__input" type="text" name="nickname" maxlength="20" placeholder="1-20 个字符" autocomplete="nickname" required>
+                </label>
+                <label class="field">
+                    <span class="field__label">个性签名</span>
+                    <textarea class="field__input field__input--bio" name="bio" rows="3" maxlength="200" placeholder="介绍一下自己（最多 200 字）"></textarea>
+                </label>
+                <button class="menu-button auth-submit" type="submit">保存资料</button>
+                <p class="auth-msg" role="alert"></p>
+            </form>
+
+            <div class="danger-zone">
+                <h3 class="danger-zone__title">注销账号</h3>
+                <p class="danger-zone__desc">注销后账号、昵称和头像都会被永久删除，无法恢复。</p>
+                <form class="auth-form" id="delete-form" novalidate>
+                    <label class="field">
+                        <span class="field__label">当前密码</span>
+                        <input class="field__input" type="password" name="password" autocomplete="current-password" required>
+                    </label>
+                    <label class="field">
+                        <span class="field__label">输入「注销」以确认</span>
+                        <input class="field__input" type="text" name="confirm" placeholder="注销" autocomplete="off" required>
+                    </label>
+                    <button class="menu-button auth-submit auth-submit--danger" type="submit">永久注销账号</button>
+                    <p class="auth-msg" role="alert"></p>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- 他人资料 -->
+    <section class="page" id="page-user">
+        <div class="page-inner page-inner--wide page-inner--user">
+            <a class="back-link" href="#community" data-page="community">← 返回社区</a>
+            <h2 class="panel-title">用户资料</h2>
+
+            <div class="user-layout">
+                <div class="user-left">
+                    <div class="profile-head">
+                        <div class="profile-avatar">
+                            <img class="profile-avatar__img" id="user-avatar-img" alt="" hidden>
+                            <span class="profile-avatar__fallback" id="user-avatar-fallback"></span>
+                        </div>
+                        <div class="profile-meta">
+                            <p class="profile-name" id="user-name"></p>
+                            <p class="profile-email" id="user-email">社区用户</p>
+                        </div>
+                    </div>
+
+                    <p class="profile-bio" id="user-bio" hidden></p>
+                    <p class="profile-meta-line" id="user-meta"></p>
+                    <div class="user-gallery" id="user-gallery" hidden></div>
+
+                    <div class="key-actions">
+                        <button class="friend-action" id="user-add-friend" type="button">加好友</button>
+                        <button class="friend-action" id="user-message" type="button" hidden>发消息</button>
+                    </div>
+                    <p class="auth-msg" id="user-msg" role="alert"></p>
+
+                    <div class="friend-section">
+                        <h3 class="section-title">最近动态</h3>
+                        <div class="user-posts" id="user-posts"></div>
+                        <p class="friends-empty" id="user-posts-empty" hidden>对方还没有发布动态</p>
+                    </div>
+                </div>
+                <div class="community-divider" aria-hidden="true"></div>
+                <div class="user-right">
+                    <p class="friends-empty" id="user-detail-empty">点击左侧某条动态，这里会显示完整内容和评论</p>
+                    <div id="user-detail-body" hidden></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 设置 -->
+    <section class="page" id="page-settings">
+        <div class="page-inner">
+            <a class="back-link" href="#home" data-page="home">← 返回首页</a>
+            <h2 class="panel-title">设置</h2>
+
+            <div class="settings-card">
+                <h3 class="section-title">账号</h3>
+                <div class="settings-row">
+                    <span class="settings-row__label">昵称</span>
+                    <span class="settings-row__value" id="settings-nickname"></span>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-row__label">邮箱</span>
+                    <span class="settings-row__value" id="settings-email"></span>
+                </div>
+                <div class="settings-actions">
+                    <a class="friend-action" href="#profile" data-page="profile">编辑资料</a>
+                    <button class="friend-action friend-action--danger" id="settings-logout" type="button">退出登录</button>
+                </div>
+            </div>
+
+            <div class="settings-card" id="settings-download-card" hidden>
+                <h3 class="section-title">下载</h3>
+                <div class="settings-row settings-row--wrap">
+                    <span class="settings-row__label">下载目录</span>
+                    <span class="settings-row__value" id="settings-download-dir">默认下载目录</span>
+                </div>
+                <div class="settings-actions">
+                    <button class="friend-action" id="settings-choose-dir" type="button">更改目录</button>
+                </div>
+            </div>
+
+            <div class="settings-card" id="settings-about-card" hidden>
+                <h3 class="section-title">版本</h3>
+                <div class="settings-row">
+                    <span class="settings-row__label">当前版本</span>
+                    <span class="settings-row__value" id="settings-version">—</span>
+                </div>
+                <div class="settings-actions">
+                    <button class="friend-action" id="settings-check-update" type="button">检查更新</button>
+                    <button class="friend-action" id="settings-update-download" type="button" hidden>下载新版本</button>
+                </div>
+                <p class="auth-msg" id="settings-update-msg" role="alert"></p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 好友与聊天 -->
+    <section class="page" id="page-friends">
+        <div class="page-inner page-inner--wide">
+            <div id="friends-view">
+                <a class="back-link" href="#home" data-page="home">← 返回首页</a>
+                <h2 class="panel-title">好友</h2>
+
+                <form class="auth-form friend-search" id="friend-search-form" novalidate>
+                    <div class="code-row">
+                        <input class="field__input" type="search" name="query" maxlength="60"
+                               placeholder="输入昵称或完整邮箱" autocomplete="off">
+                        <button class="code-send" type="submit">搜索</button>
+                    </div>
+                    <p class="auth-msg" id="friend-search-msg" role="alert"></p>
+                </form>
+
+                <div class="friend-section" id="friend-results-wrap" hidden>
+                    <h3 class="section-title">搜索结果</h3>
+                    <div class="friend-list" id="friend-results"></div>
+                </div>
+
+                <div class="friend-section" id="friend-requests-wrap" hidden>
+                    <h3 class="section-title">好友申请</h3>
+                    <div class="friend-list" id="friend-requests"></div>
+                </div>
+
+                <div class="friend-section">
+                    <h3 class="section-title">我的好友</h3>
+                    <div class="friend-list" id="friends-list"></div>
+                    <p class="friends-empty" id="friends-empty">还没有好友，用昵称或邮箱搜索添加吧</p>
+                </div>
+
+                <div class="friend-section" id="blocked-wrap" hidden>
+                    <h3 class="section-title">黑名单</h3>
+                    <div class="friend-list" id="blocked-list"></div>
+                </div>
+            </div>
+
+            <div id="chat-view" hidden>
+                <button class="back-link chat-back" id="chat-back" type="button">← 好友列表</button>
+                <div class="chat-head">
+                    <span class="chat-avatar" id="chat-avatar"></span>
+                    <span class="chat-name" id="chat-name"></span>
+                    <span class="chat-head__actions">
+                        <button class="friend-action" type="button" id="chat-report">举报</button>
+                        <button class="friend-action" type="button" id="chat-block">拉黑</button>
+                    </span>
+                </div>
+                <div class="chat-scroll" id="chat-scroll">
+                    <div class="chat-messages" id="chat-messages"></div>
+                    <p class="friends-empty" id="chat-empty" hidden>还没有消息，打个招呼吧</p>
+                </div>
+                <form class="chat-form" id="chat-form" novalidate>
+                    <button class="friend-action chat-attach" id="chat-attach" type="button" title="发送图片或视频">＋</button>
+                    <textarea class="chat-input" id="chat-input" rows="1" maxlength="2000"
+                              placeholder="输入消息…" autocomplete="off"></textarea>
+                    <button class="code-send chat-send" type="submit">发送</button>
+                </form>
+                <div class="chat-attach-bar" id="chat-attach-bar" hidden>
+                    <span class="chat-attach-name" id="chat-attach-name"></span>
+                    <button class="chat-attach-clear" id="chat-attach-clear" type="button">移除</button>
+                </div>
+                <input class="media-file" type="file" id="chat-file" accept="image/*,video/*" hidden>
+                <p class="auth-msg" id="chat-msg" role="alert"></p>
+            </div>
+        </div>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="script.js"></script>
+    <script src="store-data.js"></script>
+    <script src="store.js"></script>
+    <script src="auth.js"></script>
+</body>
+</html>
