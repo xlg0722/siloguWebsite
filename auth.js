@@ -1045,7 +1045,15 @@
     async function loadUserPosts() {
         if (!userPostsBox || !viewedUser) return;
 
-        userPostsBox.textContent = '加载中…';
+        userPostsBox.textContent = '';
+        if (window.SilguLoader) {
+            const box = document.createElement('div');
+            box.className = 'area-loader area-loader--flow';
+            box.appendChild(window.SilguLoader.dots());
+            userPostsBox.appendChild(box);
+        } else {
+            userPostsBox.textContent = '加载中…';
+        }
         if (userPostsEmpty) userPostsEmpty.hidden = true;
         const targetId = viewedUser.id;
 
@@ -2230,6 +2238,17 @@
     let socialRefreshing = null;   // 正在进行的刷新，避免重复请求
     let socialLoadedAt = 0;        // 上次刷新完成时间
 
+    // 局部加载圆圈：只在指定区域显示，不遮住整页
+    function setAreaLoading(el, on) {
+        if (!el) return;
+        if (on) {
+            if (!el.firstChild && window.SilguLoader) el.appendChild(window.SilguLoader.dots());
+            el.hidden = false;
+        } else {
+            el.hidden = true;
+        }
+    }
+
     async function refreshSocial() {
         if (!currentUser) {
             friends = [];
@@ -2249,9 +2268,10 @@
 
         if (socialRefreshing) return socialRefreshing;
 
-        // 好友页打开时用全屏圆圈，避免好友列表空白
+        // 好友页只让「我的好友」这块显示圆圈，上方的搜索和标题保持可见可点
         const onFriendsPage = /#friends/.test(location.hash);
-        if (onFriendsPage && window.SilguLoader) window.SilguLoader.show();
+        const friendsLoading = document.getElementById('friends-loading');
+        if (onFriendsPage) setAreaLoading(friendsLoading, true);
 
         socialRefreshing = Promise.all([
             loadFriends(),
@@ -2262,7 +2282,7 @@
             socialLoadedAt = Date.now();
         }).finally(function () {
             socialRefreshing = null;
-            if (onFriendsPage && window.SilguLoader) window.SilguLoader.hide();
+            if (onFriendsPage) setAreaLoading(friendsLoading, false);
         });
 
         return socialRefreshing;
@@ -2443,7 +2463,8 @@
     async function loadMessages() {
         if (!currentUser || !activeFriend) return;
 
-        if (window.SilguLoader) window.SilguLoader.show();
+        const chatLoading = document.getElementById('chat-loading');
+        setAreaLoading(chatLoading, true);
 
         const target = activeFriend;
         const keyRefresh = refreshFriendKey(target);
@@ -2463,14 +2484,14 @@
 
         if (result.error) {
             setSocialMsg(chatMsg, '消息加载失败：' + socialError(result.error));
-            if (window.SilguLoader) window.SilguLoader.hide();
+            setAreaLoading(chatLoading, false);
             return;
         }
 
         setSocialMsg(chatMsg, '');
         // 取最近 200 条后再正序展示
         await renderMessages((result.data || []).slice().reverse());
-        if (window.SilguLoader) window.SilguLoader.hide();
+        setAreaLoading(chatLoading, false);
     }
 
     async function markChatRead() {
@@ -3110,12 +3131,12 @@
         renderCommunityMore();
     }
 
-    // 「加载更多」按钮的显示与加载中状态
+    // 「加载更多」按钮的显示与加载中状态（加载时由帖子区左下角的圆圈提示）
     function renderCommunityMore() {
         if (!communityMoreBtn) return;
-        communityMoreBtn.hidden = !communityHasMore;
+        communityMoreBtn.hidden = !communityHasMore || communityLoadingMore;
         communityMoreBtn.disabled = communityLoadingMore;
-        communityMoreBtn.textContent = communityLoadingMore ? '加载中…' : '加载更多';
+        communityMoreBtn.textContent = '加载更多';
     }
 
     function clearCommunityDetail() {
@@ -3508,7 +3529,15 @@
             return;
         }
 
-        list.textContent = '加载中…';
+        list.textContent = '';
+        if (window.SilguLoader) {
+            const box = document.createElement('div');
+            box.className = 'area-loader area-loader--flow';
+            box.appendChild(window.SilguLoader.dots());
+            list.appendChild(box);
+        } else {
+            list.textContent = '加载中…';
+        }
 
         const result = await sb
             .from('community_comments')
@@ -3688,18 +3717,21 @@
         if (!currentUser) {
             communityPosts = [];
             communityHasMore = false;
+            setAreaLoading(document.getElementById('community-loading'), false);
             renderCommunityPosts();
             return;
         }
         if (!force && !append && communityLoadedAt && Date.now() - communityLoadedAt < 10000) return;
         if (append && (communityLoadingMore || !communityHasMore)) return;
 
-        // 首次加载社区时用全屏圆圈，避免列表空白一段时间
-        if (!append && window.SilguLoader) window.SilguLoader.show();
+        // 首次加载社区时只在帖子区左下角显示圆圈，发布框和导航仍然可用
+        const feedLoading = document.getElementById('community-loading');
+        if (!append) setAreaLoading(feedLoading, true);
 
         if (append) {
             communityLoadingMore = true;
             renderCommunityMore();
+            setAreaLoading(feedLoading, true);
         }
 
         const reqId = ++communityRequestId;
@@ -3738,7 +3770,7 @@
 
         if (result.error) {
             communityLoadingMore = false;
-            if (window.SilguLoader) window.SilguLoader.hide();
+            setAreaLoading(feedLoading, false);
             if (!append) {
                 communityPosts = [];
                 communityHasMore = false;
@@ -3848,7 +3880,7 @@
         communityLoadingMore = false;
         communityLoadedAt = Date.now();
         renderCommunityPosts(append);
-        if (!append && window.SilguLoader) window.SilguLoader.hide();
+        setAreaLoading(feedLoading, false);
 
         // 当前选中的消息如果已不存在，清空右侧
         if (activeCommunityPostId) {
