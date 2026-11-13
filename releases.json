@@ -1,30 +1,6 @@
 {
-  "updatedAt": "2026-11-13T01:45:06.707Z",
+  "updatedAt": "2026-11-13T09:24:52.343Z",
   "repos": {
-    "silogu/yourworld": [
-      {
-        "tag_name": "beta-v1.0-win64",
-        "prerelease": true,
-        "created_at": "2026-11-07T19:39:21+08:00",
-        "assets": [
-          {
-            "name": "yourworld-v0.1-win64.zip",
-            "size": 0,
-            "browser_download_url": "https://gitee.com/silogu/yourworld/releases/download/beta-v1.0-win64/yourworld-v0.1-win64.zip"
-          },
-          {
-            "name": "beta-v1.0-win64.zip",
-            "size": 0,
-            "browser_download_url": "https://gitee.com/silogu/yourworld/archive/refs/tags/beta-v1.0-win64.zip"
-          },
-          {
-            "name": "beta-v1.0-win64.tar.gz",
-            "size": 0,
-            "browser_download_url": "https://gitee.com/silogu/yourworld/archive/refs/tags/beta-v1.0-win64.tar.gz"
-          }
-        ]
-      }
-    ],
     "silogu/silogu-app": [
       {
         "tag_name": "v1.0.0",
@@ -111,6 +87,30 @@
             "name": "v1.0.3.tar.gz",
             "size": 0,
             "browser_download_url": "https://gitee.com/silogu/silogu-app/archive/refs/tags/v1.0.3.tar.gz"
+          }
+        ]
+      }
+    ],
+    "silogu/yourworld": [
+      {
+        "tag_name": "beta-v1.0-win64",
+        "prerelease": true,
+        "created_at": "2026-11-07T19:39:21+08:00",
+        "assets": [
+          {
+            "name": "yourworld-v0.1-win64.zip",
+            "size": 0,
+            "browser_download_url": "https://gitee.com/silogu/yourworld/releases/download/beta-v1.0-win64/yourworld-v0.1-win64.zip"
+          },
+          {
+            "name": "beta-v1.0-win64.zip",
+            "size": 0,
+            "browser_download_url": "https://gitee.com/silogu/yourworld/archive/refs/tags/beta-v1.0-win64.zip"
+          },
+          {
+            "name": "beta-v1.0-win64.tar.gz",
+            "size": 0,
+            "browser_download_url": "https://gitee.com/silogu/yourworld/archive/refs/tags/beta-v1.0-win64.tar.gz"
           }
         ]
       }
